@@ -14,8 +14,8 @@ Specifically you must do the following:
 Scripts should target both ML-related and standard data-management operations (ETL) that are common over different cluster resources.
 Each team is free to improvise but you can test both individual tasks (e.g., graph operators like PageRank, triangleCount, popular ML operations such as prediction, clustering, etc.) as well as more complex jobs (you can use [kdnuggets](https://www.kdnuggets.com/) and [kaggle](https://www.kaggle.com/) for example on this).
 These scripts should be posed over
-- a different number of nodes/workers,
-- different input data size/type. Teams should be careful and compare meaningful statistics in this important step.
+    - a different number of nodes/workers,
+    - different input data size/type. Teams should be careful and compare meaningful statistics in this important step.
 
 Besides the aforementioned project aspects, you are free to improvise in order to best demonstrate the relative strengths and weaknesses of each system (strengths in particular operations, scalability with memory/cores, etc).
 
