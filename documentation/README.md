@@ -5,8 +5,8 @@ This folder contains tutorials, guides, and installer/setup scripts for the proj
 
 ### Create the machines
 
-If you choose to run the project in Okeanos, check out [how to create the VMs in Okeanos](create-okeanos.md).
-If you choose to run the project in local VMs, check out [how to create the VMs in your local machine](create-local.md).
+If you choose to run the project in Okeanos, check out [how to create the VMs in Okeanos](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/tutorials/create-okeanos.md).
+If you choose to run the project in local VMs, check out [how to create the VMs in your local machine](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/tutorials/create-local.md).
 
 
 ### Access the machines
@@ -24,6 +24,7 @@ sudo systemctl enable ssh
 #### (optional) enable passwordless SSH
 
 >> If you don't have a public key, create one: `ssh-keygen`
+
 In both VMs, add your host's public key (`~/.ssh/id_rsa.pub`) to the VMs' `~/.ssh/authorized_keys` file:
 ```bash
 cat ~/.ssh/id_rsa.pub # host os
