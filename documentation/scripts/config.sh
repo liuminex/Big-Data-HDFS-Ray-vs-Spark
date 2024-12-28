@@ -1,0 +1,28 @@
+#!/bin/bash
+
+HADOOP_LINK="https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz"
+SPARK_LINK="https://dlcdn.apache.org/spark/spark-3.5.4/spark-3.5.4-bin-hadoop3.tgz"
+MASTER_PUBLIC_IP="?"
+MASTER_IP="192.168.2.10" # local IP
+WORKER_IP="192.168.2.9" # local IP
+
+
+
+
+
+# printing to terminal
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+LIME='\033[0;92m'
+YELLOW='\033[0;93m'
+NC='\033[0m' # No Color
+
+eko() {
+    # eg: eko RED "Hello, World!"
+    echo -e "${!1}${2}${NC}"
+}
+
