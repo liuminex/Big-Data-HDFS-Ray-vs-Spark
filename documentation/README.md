@@ -60,6 +60,8 @@ sudo reboot
 
 ### Install and configure
 
+First update variables in `config.sh`.
+
 In **both** VMs run:
 ```bash
 1-hosts-ssh.sh
@@ -81,7 +83,37 @@ jps
 ```
 You should see `NameNode` and `DataNode` in the master VM, and `DataNode` in the worker VM.
 
-Other option to confirm it, is to go to [http://o-master:9870](http://o-master:9870)
-(example: [http://192.168.2.10:9870](http://192.168.2.10:9870)) and check if there are two live nodes.
+Other option to confirm it, is to go to [http://o-master (public IP):9870](http://o-master:9870).
+Use public IP for okeanos or private IP for local VMs. Example:
+[http://192.168.2.10:9870](http://192.168.2.10:9870).
+Check if there are two live nodes.
+
+If you don't see the nodes, check the logs:
+```bash
+cat /opt/hadoop/logs/hadoop-*.log
+```
+
+In the master VM run:
+```bash
+5-yarn-hadoop.sh
+start-yarn.sh
+```
+
+Confirm:
+```bash
+yarn node -list
+```
+You should see two nodes.
+
+Other option to confirm it, is to go to [http://o-master (public IP):8088/cluster/nodes](http://o-master:8088/cluster/nodes).
+Use public IP for okeanos or private IP for local VMs. Example:
+[http://192.168.2.10:8088/cluster/nodes](http://192.168.2.10:8088/cluster/nodes).
+Check if there are two nodes.
+
+
+### Important
+
+If VM IP addresses change, you need to update the `config.sh` file and run `1-hosts-ssh.sh` and `5-yarn-hadoop.sh` again.
+
 
 

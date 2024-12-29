@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Run this script in the master VM
+
+
+source ./config.sh || { eko RED "config.sh not found."; }
+
+# setup environment for hadoop yarn
+
+echo '<?xml version="1.0"?>
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>o-master</value>
+    </property>
+    <property>
+        <name>yarn.resourcemanager.webapp.address</name>
+        <value>'"$MASTER_PUBLIC_IP"':8088</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>6144</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>6144</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>128</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle,spark_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.aux-services.mapreduce_shuffle.class</name>
+        <value>org.apache.hadoop.mapred.ShuffleHandler</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.aux-services.spark_shuffle.class</name>
+        <value>org.apache.spark.network.yarn.YarnShuffleService</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.aux-services.spark_shuffle.classpath</name>
+        <value>/opt/spark/yarn/*</value>
+    </property>
+</configuration>' > $HADOOP_HOME/etc/hadoop/yarn-site.xml
+
+
+
+
