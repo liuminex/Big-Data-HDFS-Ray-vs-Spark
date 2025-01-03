@@ -1,0 +1,27 @@
+#!/bin/bash
+
+source ./config.sh || { eko RED "config.sh not found."; }
+
+#!/bin/bash
+
+# Hardcoded head node IP address and port
+HEAD_NODE_IP=$MASTER_IP # Replace with the actual head node IP
+HEAD_NODE_PORT="6379"
+
+# Check the argument passed to the script
+if [[ $1 == "master" ]]; then
+    echo "Starting Ray head node..."
+    ray start --head --port=$HEAD_NODE_PORT
+    echo "Ray head node started at $HEAD_NODE_IP:$HEAD_NODE_PORT"
+elif [[ $1 == "worker" ]]; then
+    echo "Connecting to Ray head node at $HEAD_NODE_IP:$HEAD_NODE_PORT..."
+    ray start --address="$HEAD_NODE_IP:$HEAD_NODE_PORT"
+    echo "Connected to Ray head node."
+else
+    echo "Usage:"
+    echo "  ./8-configure-ray master   - Starts the Ray head node."
+    echo "  ./8-configure-ray worker   - Connects this node to the Ray head node."
+    exit 1
+fi
+
+
