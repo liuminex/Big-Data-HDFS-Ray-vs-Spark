@@ -19,11 +19,11 @@ echo '<?xml version="1.0"?>
     </property>
     <property>
         <name>yarn.nodemanager.resource.memory-mb</name>
-        <value>6144</value>
+        <value>'"$MAX_MEM"'</value>
     </property>
     <property>
         <name>yarn.scheduler.maximum-allocation-mb</name>
-        <value>6144</value>
+        <value>'"$MAX_MEM"'</value>
     </property>
     <property>
         <name>yarn.scheduler.minimum-allocation-mb</name>

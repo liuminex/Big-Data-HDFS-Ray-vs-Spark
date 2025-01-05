@@ -13,7 +13,7 @@ If you choose to run the project in local VMs, check out [how to create the VMs 
 
 #### Enable SSH
 
-Check if enabled: `sudo systemctl status ssh`, if not enabled, enable it:
+Check if enabled: `sudo systemctl status ssh`, if not, enable it:
 ```bash
 sudo apt update
 sudo apt install openssh-server

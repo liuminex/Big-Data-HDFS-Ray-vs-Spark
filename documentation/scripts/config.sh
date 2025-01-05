@@ -5,7 +5,7 @@ SPARK_LINK="https://dlcdn.apache.org/spark/spark-3.5.4/spark-3.5.4-bin-hadoop3.t
 MASTER_PUBLIC_IP="192.168.2.9" # in out local VM setup, public is the same as local
 MASTER_IP="192.168.2.9" # local IP
 WORKER_IP="192.168.2.10" # local IP
-
+MAX_MEM="1024" # memory to allocate for yarn (must be less than VM memory)
 
 
 
