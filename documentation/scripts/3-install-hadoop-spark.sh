@@ -20,30 +20,30 @@ eko CYAN "Creating /opt/bin directories"
 sudo mkdir -p /opt/bin || { eko RED "Failed to create /opt/bin."; }
 
 # Install Hadoop
-if [ -f "$HADOOP_FILE" ]; then
+if [ -f "$HOME/$HADOOP_FILE" ]; then
     eko GREEN "Hadoop tar file already exists. Skipping download."
 else
     eko CYAN "Downloading Hadoop"
-    wget $HADOOP_LINK || { eko RED "Failed to download Hadoop."; }
+    wget $HADOOP_LINK -P ~/ || { eko RED "Failed to download Hadoop."; }
 fi
 eko CYAN "Extracting Hadoop"
-tar -xvzf $HADOOP_FILE > /dev/null || { eko RED "Failed to extract Hadoop."; }
+tar -xvzf $HOME/$HADOOP_FILE -C $HOME > /dev/null || { eko RED "Failed to extract Hadoop."; }
 eko CYAN "Moving Hadoop to /opt/bin"
-sudo mv $HADOOP_DIR /opt/bin || { eko RED "Failed to move Hadoop."; }
+sudo mv $HOME/$HADOOP_DIR /opt/bin || { eko RED "Failed to move Hadoop."; }
 eko CYAN "Creating symbolic link for Hadoop"
 sudo ln -sf /opt/bin/$HADOOP_DIR /opt/hadoop || { eko RED "Failed to create Hadoop symlink."; }
 
 # Install Spark
-if [ -f "$SPARK_FILE" ]; then
+if [ -f "$HOME/$SPARK_FILE" ]; then
     eko GREEN "Spark tar file already exists. Skipping download."
 else
     eko CYAN "Downloading Spark"
-    wget $SPARK_LINK || { eko RED "Failed to download Spark."; }
+    wget $SPARK_LINK -P ~/ || { eko RED "Failed to download Spark."; }
 fi
 eko CYAN "Extracting Spark"
-tar -xvzf $SPARK_FILE > /dev/null || { eko RED "Failed to extract Spark."; }
+tar -xvzf $HOME/$SPARK_FILE -C $HOME > /dev/null || { eko RED "Failed to extract Spark."; }
 eko CYAN "Moving Spark to /opt/bin"
-sudo mv $SPARK_DIR /opt/bin/ || { eko RED "Failed to move Spark."; }
+sudo mv $HOME/$SPARK_DIR /opt/bin/ || { eko RED "Failed to move Spark."; }
 eko CYAN "Creating symbolic link for Spark"
 sudo ln -sf /opt/bin/$SPARK_DIR /opt/spark || { eko RED "Failed to create Spark symlink."; }
 
@@ -93,4 +93,3 @@ export LD_LIBRARY_PATH=\$HADOOP_HOME/lib/native:\$LD_LIBRARY_PATH
 export PYSPARK_PYTHON=python3
 EOF
 
-source ~/.bashrc

@@ -20,6 +20,6 @@ hadoop fs -mkdir /spark.eventLog
 eko CYAN "Spark setup complete"
 
 echo 'export PATH=$SPARK_HOME/sbin:$PATH' >> ~/.bashrc
-source ~/.bashrc
-
 eko GREEN "Added start-history-server.sh to PATH"
+
+

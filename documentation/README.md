@@ -113,6 +113,7 @@ cd ~/project/documentation/scripts
 sudo reboot
 ./2-java.sh
 ./3-install-hadoop-spark.sh
+source ~/.bashrc
 ./4-configure-hadoop.sh
 sudo reboot
 ```
@@ -140,9 +141,13 @@ If you don't see the nodes, check the logs:
 cat /opt/hadoop/logs/hadoop-*.log
 ```
 
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
 ```bash
 ./5-yarn-hadoop.sh
+```
+
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
+```bash
 start-yarn.sh
 ```
 
@@ -157,6 +162,19 @@ Other option to confirm it, is to go to [http://o-master (public IP):8088/cluste
 Use public IP for okeanos or private IP for local VMs. Example:
 [http://192.168.2.121:8088/cluster/nodes](http://192.168.2.121:8088/cluster/nodes).
 Check if there are two nodes.
+
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)?
+```bash
+./6-spark.sh
+source ~/.bashrc
+```
+
+...
+
+
+
+
+
 
 
 #### Important
