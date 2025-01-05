@@ -33,15 +33,43 @@ echo "ssh-rsa AAAA...your...key...here..." >> ~/.ssh/authorized_keys # VM
 
 #### Connect to the VMs
 
+- okeanos
 ```bash
-## okeanos
 ssh debian@snf-*****.ok-kno.grnetcloud.net -p 4622
-
-## local
-ip a | grep 192.168 # find ip
-ssh username-in-vm@192.168.2.9 # example
 ```
 
+- local
+
+in VM, find the ip:
+```bash
+ip a | grep 192.168 # find ip (in VM)
+```
+
+in host, connect to the VM:
+```bash
+ssh username-in-vm@192.168.2.9 # example (in host os)
+```
+
+Do the following using the ssh connection in order to have copy-paste enabled.
+
+set permanent IP addresses (change parameters of you need):
+
+(master vm)
+```bash
+echo -e "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp0s3:\n      dhcp4: no\n      addresses:\n        - 192.168.2.121/24\n      gateway4: 192.168.2.1\n      nameservers:\n        addresses:\n          - 8.8.8.8\n          - 8.8.4.4" | sudo tee /etc/netplan/01-netcfg.yaml > /dev/null && sudo reboot
+```
+
+(worker vm)
+```bash
+echo -e "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp0s3:\n      dhcp4: no\n      addresses:\n        - 192.168.2.122/24\n      gateway4: 192.168.2.1\n      nameservers:\n        addresses:\n          - 8.8.8.8\n          - 8.8.4.4" | sudo tee /etc/netplan/01-netcfg.yaml > /dev/null && sudo reboot
+```
+
+
+Now you can connect with:
+```bash
+ssh t@192.168.2.121 # master vm
+ssh t@192.168.2.122 # worker vm
+```
 
 ### Change hostnames
 
@@ -57,6 +85,14 @@ sudo hostnamectl set-hostname o-worker
 sudo reboot
 ```
 
+### Get the files
+
+In host os:
+Mofidy paramaters in `transfer-files-to-vms.sh` and then:
+```bash
+sudo apt-get install sshpass
+./transfer-files-to-vms.sh
+```
 
 ### Install and configure
 
@@ -64,11 +100,12 @@ First update variables in `config.sh`.
 
 In **both** VMs run:
 ```bash
-1-hosts-ssh.sh
+cd ~/project/documentation/scripts
+./1-hosts-ssh.sh
 sudo reboot
-2-java.sh
-3-install-hadoop-spark.sh
-4-configure-hadoop.sh
+./2-java.sh
+./3-install-hadoop-spark.sh
+./4-configure-hadoop.sh
 sudo reboot
 ```
 
@@ -77,7 +114,7 @@ In the master VM run:
 hdfs namenode -format && start-dfs.sh
 ```
 
-Confirm running hadoop: run in both VMs:
+Confirm running hadoop: run in [both] VMs:
 ```bash
 jps
 ```
@@ -85,7 +122,7 @@ You should see `NameNode` and `DataNode` in the master VM, and `DataNode` in the
 
 Other option to confirm it, is to go to [http://o-master (public IP):9870](http://o-master:9870).
 Use public IP for okeanos or private IP for local VMs. Example:
-[http://192.168.2.10:9870](http://192.168.2.10:9870).
+[http://192.168.2.121:9870](http://192.168.2.121:9870).
 Check if there are two live nodes.
 
 If you don't see the nodes, check the logs:
@@ -107,13 +144,19 @@ You should see two nodes.
 
 Other option to confirm it, is to go to [http://o-master (public IP):8088/cluster/nodes](http://o-master:8088/cluster/nodes).
 Use public IP for okeanos or private IP for local VMs. Example:
-[http://192.168.2.10:8088/cluster/nodes](http://192.168.2.10:8088/cluster/nodes).
+[http://192.168.2.121:8088/cluster/nodes](http://192.168.2.121:8088/cluster/nodes).
 Check if there are two nodes.
 
 
-### Important
+#### Important
 
 If VM IP addresses change, you need to update the `config.sh` file and run `1-hosts-ssh.sh` and `5-yarn-hadoop.sh` again.
 
 
+### Usage
 
+After successful installation and configuration, after reboot you can start them using (in the master vm only):
+```bash
+start-dfs.sh
+start-yarn.sh
+```
