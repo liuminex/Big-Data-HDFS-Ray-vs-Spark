@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Run this script in the master VM
+# Run this script in both VMs
 
 
 source ./config.sh || { eko RED "config.sh not found."; }

@@ -123,23 +123,19 @@ sudo reboot
 hdfs namenode -format && start-dfs.sh
 ```
 
-Confirm running hadoop:
-![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
-```bash
-jps
-```
-You should see `NameNode` and `DataNode` in the master VM, and `DataNode` in the worker VM.
+#### Confirm running hadoop
 
-Other option to confirm it, is to go to [http://o-master (public IP):9870](http://o-master:9870).
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) run command `jps`. You should see `NameNode` and `DataNode` in the master VM, and `DataNode` in the worker VM.
+
+Or go to [http://o-master (public IP):9870](http://o-master:9870).
 Use public IP for okeanos or private IP for local VMs. Example:
 [http://192.168.2.121:9870](http://192.168.2.121:9870).
 Check if there are two live nodes.
 
 If you don't see the nodes, check the logs:
-![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
-```bash
-cat /opt/hadoop/logs/hadoop-*.log
-```
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) `cat /opt/hadoop/logs/hadoop-*.log`
+
+#### Continue setup
 
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
 ```bash
@@ -151,31 +147,52 @@ cat /opt/hadoop/logs/hadoop-*.log
 start-yarn.sh
 ```
 
-Confirm:
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
-```bash
-yarn node -list
-```
-You should see two nodes.
+#### Confirm yarn
 
-Other option to confirm it, is to go to [http://o-master (public IP):8088/cluster/nodes](http://o-master:8088/cluster/nodes).
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) `yarn node -list`. You should see two nodes (wait a bit first!)
+
+Or 
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) run command `jps`. You should see (inn addition) `NodeManager`, `ResourceManager`, `SecondaryNameNode` and `DataNode` in the master VM, and `NodeManager` in the worker VM.
+
+Or go to [http://o-master (public IP):8088/cluster/nodes](http://o-master:8088/cluster/nodes).
 Use public IP for okeanos or private IP for local VMs. Example:
 [http://192.168.2.121:8088/cluster/nodes](http://192.168.2.121:8088/cluster/nodes).
 Check if there are two nodes.
 
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)?
+#### Continue setup
+
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) (η πρωτη εντολη (echo) ιιιιισως να χρειαζεται και στο worker - μαλλον οχι)
 ```bash
 ./6-spark.sh
 source ~/.bashrc
 ```
 
-...
+#### Confirm history server
 
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) `jps`. Find `HistoryServer`.
 
+Or go to [http://o-master (public IP):18080](http://o-master:18080).
+Use public IP for okeanos or private IP for local VMs. Example:
+[http://192.168.2.121:18080](http://192.168.2.121:18080).
+Check if there are two nodes.
 
+#### Confirm spark
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
+```bash
+spark-submit --class org.apache.spark.examples.SparkPi /opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar 100
+```
 
-
-
+If you used MAX_MEM<=1024, use this command instead:
+```bash
+spark-submit \
+  --class org.apache.spark.examples.SparkPi \
+  --conf spark.executor.memory=512m \
+  --conf spark.driver.memory=512m \
+  /opt/bin/spark-3.5.4-bin-hadoop3/examples/jars/spark-examples_2.12-3.5.4.jar 100
+```
+You must be able to monitor the progress at:
+- YARN web application (http://83.212.xxx.xxx:8088)
+- history server (http://83.212.xxx.xxx::18080) after completion.
 
 #### Important
 
@@ -188,4 +205,5 @@ After successful installation and configuration, after reboot you can start them
 ```bash
 start-dfs.sh
 start-yarn.sh
+$SPARK_HOME/sbin/start-history-server.sh
 ```
