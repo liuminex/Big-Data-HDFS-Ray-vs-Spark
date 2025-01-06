@@ -11,7 +11,7 @@ HEAD_NODE_PORT="6379"
 # Check the argument passed to the script
 if [[ $1 == "master" ]]; then
     echo "Starting Ray head node..."
-    ray start --head --port=$HEAD_NODE_PORT
+    ray start --head --port=$HEAD_NODE_PORT --dashboard-host="0.0.0.0"
     echo "Ray head node started at $HEAD_NODE_IP:$HEAD_NODE_PORT"
 elif [[ $1 == "worker" ]]; then
     echo "Connecting to Ray head node at $HEAD_NODE_IP:$HEAD_NODE_PORT..."
