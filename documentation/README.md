@@ -202,11 +202,11 @@ source ~/.bashrc
 ```
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
 ```bash
-./8-configure-ray master
+./8-start-ray master
 ```
 ![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
 ```bash
-./8-configure-ray worker
+./8-start-ray worker
 ```
 
 #### Confirm Ray
@@ -215,7 +215,7 @@ source ~/.bashrc
 ```bash
 python3 ./test-ray.py
 ```
-Ray dashboard should be available at [http://o-master (public IP):8265](http://o-master:8265) (example: [http://192.168.2.121:8265](http://192.168.2.121:8265)
+Ray dashboard should be available at [http://o-master (public IP):8265](http://o-master:8265) (example: [http://192.168.2.121:8265](http://192.168.2.121:8265))
 
 #### Important
 
@@ -229,4 +229,10 @@ After successful installation and configuration, after reboot you can start them
 start-dfs.sh
 start-yarn.sh
 $SPARK_HOME/sbin/start-history-server.sh
+./project/documentation/scripts/8-start-ray master
+```
+
+![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
+```bash
+./project/documentation/scripts/8-start-ray worker
 ```
