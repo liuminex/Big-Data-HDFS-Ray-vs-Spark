@@ -194,6 +194,29 @@ You must be able to monitor the progress at:
 - YARN web application (http://83.212.xxx.xxx:8088)
 - history server (http://83.212.xxx.xxx::18080) after completion.
 
+#### Continue setup
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
+```bash
+./7-install-python-ray.sh
+source ~/.bashrc
+```
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
+```bash
+./8-configure-ray master
+```
+![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
+```bash
+./8-configure-ray worker
+```
+
+#### Confirm Ray
+
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
+```bash
+python3 ./test-ray.py
+```
+Ray dashboard should be available at [http://o-master (public IP):8265](http://o-master:8265) (example: [http://192.168.2.121:8265](http://192.168.2.121:8265)
+
 #### Important
 
 Make sure VM IP addresses have not changed!

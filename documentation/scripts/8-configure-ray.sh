@@ -1,12 +1,11 @@
 #!/bin/bash
 
+# Run this script as described
+
 source ./config.sh || { eko RED "config.sh not found."; }
 
-#!/bin/bash
-
-# Hardcoded head node IP address and port
-HEAD_NODE_IP=$MASTER_IP # Replace with the actual head node IP
-HEAD_NODE_PORT="6379"
+HEAD_NODE_IP=$MASTER_IP # Master node local IP
+HEAD_NODE_PORT="6379" # Default port for Ray head node
 
 # Check the argument passed to the script
 if [[ $1 == "master" ]]; then

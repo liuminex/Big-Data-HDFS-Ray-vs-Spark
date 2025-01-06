@@ -5,6 +5,7 @@
 source ./config.sh || { eko RED "config.sh not found."; }
 
 stop-all.sh
+ray stop
 
 #stop-dfs.sh
 #stop-yarn.sh

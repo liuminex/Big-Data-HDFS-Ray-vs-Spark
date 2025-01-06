@@ -8,7 +8,7 @@ This project explores a comparative study of Ray and Apache Spark, two leading P
 
 ## Part 1: Install and setup
 
-Installation and setup instructions for VMs, Hadoop, Ray and Spark on local or Okeanos-based resources, and the [assignment](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/ASSIGNMENT.md) can be found in the [documentation](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/README.md) folder.
+Installation and setup instructions for VMs, Hadoop, Ray and Spark on local or Okeanos-based resources, and the [assignment](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/ASSIGNMENT.md) can be found in the [documentation](https://github.com/ntua-el20439/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/) folder.
 
 ## Part 2: Data gathering
 
