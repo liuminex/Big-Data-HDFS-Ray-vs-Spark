@@ -23,16 +23,15 @@ sudo systemctl enable ssh
 
 #### [optional] enable passwordless SSH
 
-> If you don't have a public key, create one: `ssh-keygen`
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Get the public key of the host OS:
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) If you don't have a public key, create one:
 ```bash
-cat ~/.ssh/id_rsa.pub # host os
+ssh-keygen -t ed25519 -C "your@email.com"
 ```
 
-![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) Add your host's public key (`~/.ssh/id_rsa.pub`) to the VMs' `~/.ssh/authorized_keys` file:
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Add your host's public key to the VMs' `~/.ssh/authorized_keys` file:
 ```bash
-echo "ssh-rsa AAAA...your...key...here..." >> ~/.ssh/authorized_keys # VM
+ssh-copy-id -i ~/.ssh/id_ed25519.pub username-in-vm@[VM1_IP_ADDRESS]
+ssh-copy-id -i ~/.ssh/id_ed25519.pub username-in-vm@[VM2_IP_ADDRESS]
 ```
 
 #### Connect to the VMs
