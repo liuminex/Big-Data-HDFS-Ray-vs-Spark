@@ -21,34 +21,22 @@ sudo systemctl start ssh
 sudo systemctl enable ssh
 ```
 
-#### [optional] enable passwordless SSH
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5)  Check if you have a key:
+![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) Find the dynamic IPs of the VMs:
 ```bash
-cat ~/.ssh/id_rsa.pub # host os
+ip a | grep 192. # find ip (in VM)
 ```
 
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) If you don't have a public key, create one:
-```bash
-ssh-keygen -t ed25519 -C "your@email.com"
-```
+First update variables in `config.sh`!
 
-![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) Find the dynamic (yet) ip of the VMs:
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Setup static IPs for the VMs:
 ```bash
-ip a | grep 192.168 # find ip (in VM)
+cd ~/project/documentation/scripts
+./0-1-vm-ip-ssh.sh
 ```
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Add your host's public key to the VMs' `~/.ssh/authorized_keys` file (using the dynamic IPs of the VMs):
+After they finish rebooting:
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Setup Vm hostnames:
 ```bash
-ssh-copy-id -i ~/.ssh/id_ed25519.pub username-in-vm@[VM1_IP_ADDRESS]
-ssh-copy-id -i ~/.ssh/id_ed25519.pub username-in-vm@[VM2_IP_ADDRESS]
-```
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Examples (for copy paste):
-```bash
-# jason
-ssh-copy-id -i ~/.ssh/id_rsa.pub t@192.168.2.14
-ssh-copy-id -i ~/.ssh/id_rsa.pub t@192.168.2.15
+./0-2-vm-hostnames.sh
 ```
 
 #### Connect to the VMs
@@ -63,46 +51,18 @@ ssh debian@snf-*****.ok-kno.grnetcloud.net -p 4622
 
 ![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Connect to the VM:
 ```bash
-ssh username-in-vm@dynamic-ip-of-vm
-```
+ssh username-in-vm@the-static-ip-you-defined-in-config
 
-Do the following using the ssh connection in order to have copy-paste enabled.
+# examples:
 
-set permanent IP addresses (change parameters of you need):
+ssh t@192.168.2.121
 
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
-```bash
-echo -e "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp0s3:\n      dhcp4: no\n      addresses:\n        - 192.168.56.104/24\n      gateway4: 192.168.2.1\n      nameservers:\n        addresses:\n          - 8.8.8.8\n          - 8.8.4.4" | sudo tee /etc/netplan/01-netcfg.yaml > /dev/null && sudo reboot
-```
-
-![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
-```bash
-echo -e "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp0s3:\n      dhcp4: no\n      addresses:\n        - 192.168.56.105/24\n      gateway4: 192.168.2.1\n      nameservers:\n        addresses:\n          - 8.8.8.8\n          - 8.8.4.4" | sudo tee /etc/netplan/01-netcfg.yaml > /dev/null && sudo reboot
-```
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Now you can connect with:
-```bash
-ssh t@192.168.56.104 # master vm
-ssh t@192.168.56.105 # worker vm
-```
-
-### Change hostnames
-
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
-```bash
-sudo hostnamectl set-hostname o-master
-sudo reboot
-```
-
-![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
-```bash
-sudo hostnamectl set-hostname o-worker
-sudo reboot
+ssh debian@192.168.56.104
 ```
 
 ### Get/update the files
 
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Mofidy paramaters in `transfer-files-to-vms.sh` and then:
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5)
 ```bash
 sudo apt-get install sshpass
 ./transfer-files-to-vms.sh
@@ -110,12 +70,7 @@ sudo apt-get install sshpass
 
 ### Install and configure
 
-First update variables in `config.sh`.
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5)
-```bash
-./transfer-files-to-vms.sh
-```
+After you update/get the files:
 
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
 ```bash
