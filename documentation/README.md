@@ -34,7 +34,8 @@ cd ~/project/documentation/scripts
 ./0-1-vm-ip-ssh.sh
 ```
 After they finish rebooting:
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Setup Vm hostnames:
+
+![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Setup VΜ hostnames:
 ```bash
 ./0-2-vm-hostnames.sh
 ```
@@ -77,6 +78,7 @@ After you update/get the files:
 cd ~/project/documentation/scripts
 ./1-hosts-ssh.sh
 sudo reboot
+cd ~/project/documentation/scripts
 ./2-java.sh
 ./3-install-hadoop-spark.sh
 source ~/.bashrc
