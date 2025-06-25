@@ -63,6 +63,6 @@ n6z+WYCRipl7AAAACnRAby1tYXN0ZXI=
 # public key
 echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDTUo+gqYtnTLbUmH5wK5y03MdpAs7HKe/RR2JX5buDOBBHy0YCBD3fsoQNdeh2ilfS9Xxi5oqGTVlITEBr4NfTVkjlFPR+mI5OSaYeSyowmsVwV+jU7GAiwOQ6fbJDwjuO8aOX6BtSuXpsqvafUfAX0MUneiJBWH7v/sjTTMlk/qvmOevS+qwyAaXk02mwrVDecZfuAJI7Rt7VnUNZwwD9bnuOLD1Q3JPqw6qtzOLYxkNDmoieuBkYfc5YLd7nBz8V8yUy2X5RqL/H6d1iu1blLNPTYxwBhku8xHJlNQ0Wtd5w0NaojUN7Ygjv/Yw19RZrUgxNixQZt19GNynpkQm++hvQeQR9YR+hud9tpCB1ccVqADiHTYqpcuIWBZcOnHORYmItOyIRWlxEzZd0pMkGdO0AjsS0GC1TjFhcdmgbqwkQuo9XLI/UeRPciI6qmIEA1xfbNhxuBCsSZt79GPuT2/sZOFCyl8QYdSadNAqEh7nIwivYw+cudDLmTkurv+zU9Whzv9+7IfVn2eGjC5lhxeSGoR6RwFDVz7mDK6aAedh22Chk4caLz4JBhlnYam1mDoi12TeY+ILAGTUNTQzw0QVyV6llkP+hlTWKmrnUcnaZ3F1wCwa+nIMWQ9TyGQcLryKoW03l0UDKeqjXNm6aq9/XqSez+4wTX9D3dulmAw==" > ~/.ssh/id_rsa.pub
 # add (pub) key to authorized_keys
-cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys
+cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
 chmod 600 ~/.ssh/id_rsa
