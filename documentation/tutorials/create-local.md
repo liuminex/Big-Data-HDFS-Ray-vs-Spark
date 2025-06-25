@@ -12,9 +12,9 @@ In Virtualbox, press `[ctrl + H]`, create new host-only network.
 
 In the VM settings **of both machines**:
 - Set `Network -> Adapter 1` to `Bridged Adapter`
-- Set `Network -> Adapter 2` to `Host-only Adapter` and use the created host-only network in the `name` field.
-- Select `Advanced` -> `Adapter Type` -> `Intel Desktop`
-- Select `Promiscuous Mode` -> `Allow All`.
+- Set `Network -> Adapter 2` to `Host-only Adapter` and use the created host-only network in the `name` field. Also, in Adapter 2:
+    - Select `Advanced` -> `Adapter Type` -> `Intel Desktop`
+    - Select `Promiscuous Mode` -> `Allow All`.
 
 *Start the VMs*
 
