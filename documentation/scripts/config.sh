@@ -20,9 +20,9 @@ if [ "$setup" == "manos" ]; then # Manos's Setup
     MASTER_PUBLIC_IP="192.168.56.100"
     MASTER_IP="192.168.56.104"
     WORKER_IP="192.168.56.105"
-    SOURCE_DIR=~/Documents/Big-Data-HDFS-Ray-vs-Spark
-    VM_USERNAME="debian"
-    VM_PASSWORD="1234"
+    SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
+    VM_USERNAME="ubuntu"
+    VM_PASSWORD="ubuntu"
 
 fi
 
