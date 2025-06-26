@@ -8,16 +8,14 @@ MAX_MEM="1024" # memory to allocate for yarn (must be less than VM memory)
 
 MASTER_IP="192.168.2.121" # local IP
 WORKER_IP="192.168.2.122" # local IP
-MASTER_PUBLIC_IP=$MASTER_IP # in out local VM setup, public is the same as local
 SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
 VM_USERNAME="t" # username for SSH
 VM_PASSWORD="1" # VM password
 
-setup="jason"
+setup="manos"
 
 if [ "$setup" == "manos" ]; then # Manos's Setup
     
-    MASTER_PUBLIC_IP="192.168.56.100"
     MASTER_IP="192.168.56.104"
     WORKER_IP="192.168.56.105"
     SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
@@ -48,7 +46,6 @@ eko() {
 eko CYAN "Configuration:"
 eko BLUE "MASTER_IP: $MASTER_IP"
 eko BLUE "WORKER_IP: $WORKER_IP"
-eko BLUE "MASTER_PUBLIC_IP: $MASTER_PUBLIC_IP"
 eko BLUE "SOURCE_DIR: $SOURCE_DIR"
 eko BLUE "VM_USERNAME: $VM_USERNAME"
 eko BLUE "VM_PASSWORD: $VM_PASSWORD"

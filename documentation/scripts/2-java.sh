@@ -8,6 +8,6 @@ source ./config.sh || { eko RED "config.sh not found."; }
 cd || { eko RED "Failed to navigate to home directory."; }
 eko CYAN "Installing JAVA"
 sudo apt-get update -y
-sudo apt install default-jdk -y
+sudo apt install openjdk-11-jdk -y
 java -version || { eko RED "JAVA installation verification failed."; }
 
