@@ -1,0 +1,7 @@
+# Do not track dataset files
+*.csv
+*.tar
+*.gz
+*.bz2
+*.txt
+twitter
