@@ -170,11 +170,11 @@ source ~/.bashrc
 ```
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
 ```bash
-./8-start-ray master
+./8-start-ray.sh master
 ```
 ![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
 ```bash
-./8-start-ray worker
+./8-start-ray.sh worker
 ```
 
 #### Confirm Ray
@@ -197,10 +197,10 @@ After successful installation and configuration, after reboot you can start them
 start-dfs.sh
 start-yarn.sh
 $SPARK_HOME/sbin/start-history-server.sh
-./project/documentation/scripts/8-start-ray master
+./project/documentation/scripts/8-start-ray.sh master
 ```
 
 ![Worker VM Badge](https://img.shields.io/badge/VM-Worker-f5dd42)
 ```bash
-./project/documentation/scripts/8-start-ray worker
+./project/documentation/scripts/8-start-ray.sh worker
 ```
