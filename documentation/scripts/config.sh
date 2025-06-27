@@ -16,6 +16,7 @@ setup="manos"
 
 if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then
     setup="jason"
+fi
 
 if [ "$setup" == "manos" ]; then # Manos's Setup
     
