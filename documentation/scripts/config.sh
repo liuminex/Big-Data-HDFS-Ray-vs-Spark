@@ -14,6 +14,9 @@ VM_PASSWORD="1" # VM password
 
 setup="manos"
 
+if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then
+    setup="jason"
+
 if [ "$setup" == "manos" ]; then # Manos's Setup
     
     MASTER_IP="192.168.56.104"
