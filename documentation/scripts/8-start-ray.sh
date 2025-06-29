@@ -2,7 +2,7 @@
 
 # Run this script as described
 
-source ./config.sh || { eko RED "config.sh not found."; }
+source ~/project/documentation/scripts/config.sh || { eko RED "config.sh not found."; }
 
 HEAD_NODE_IP=$MASTER_IP # Master node local IP
 HEAD_NODE_PORT="6379" # Default port for Ray head node
