@@ -1,3 +1,8 @@
 private.md
 .idea/
 ./data/com-friendster.ungraph.txt
+
+# temporary code files
+**/.tmp/
+**/.tmp
+./analysis/.tmp/*
