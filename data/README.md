@@ -1,5 +1,23 @@
 ## Data
 
+`data_reddit_original.csv` is the original dataset (70MB). In order to enlarge the dataset you can use the following to create a dataset of any size:
+```bash
+python3 generate-data.py <target_size_in_bytes>
+
+# examples
+python3 generate-data.py 1G
+python3 generate-data.py 0.1G
+python3 generate-data.py 90M
+python3 generate-data.py 1000000000
+```
+
+>> Original dataset is from [https://snap.stanford.edu/data/soc-RedditHyperlinks.html](https://snap.stanford.edu/data/soc-RedditHyperlinks.html) ([download link](https://snap.stanford.edu/data/soc-redditHyperlinks-body.tsv)). It was converted to CSV format using the `fix-tsf-to-csv-reddit.py` script.
+
+
+<hr>
+<hr>
+
+
 Get the dataset used in the project from [KONECT](http://konect.cc/networks/).
 
 ## Downloading the Dataset
