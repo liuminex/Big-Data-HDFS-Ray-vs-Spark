@@ -91,5 +91,6 @@ export HADOOP_CONF_DIR=\$HADOOP_HOME/etc/hadoop
 export HADOOP_OPTS="-Djava.library.path=\$HADOOP_HOME/lib/native"
 export LD_LIBRARY_PATH=\$HADOOP_HOME/lib/native:\$LD_LIBRARY_PATH
 export PYSPARK_PYTHON=python3
+export CLASSPATH="\$HADOOP_HOME/etc/hadoop:\$HADOOP_HOME/share/hadoop/common/lib/*:\$HADOOP_HOME/share/hadoop/common/*:\$HADOOP_HOME/share/hadoop/hdfs:\$HADOOP_HOME/share/hadoop/hdfs/lib/*:\$HADOOP_HOME/share/hadoop/hdfs/*"
 EOF
 
