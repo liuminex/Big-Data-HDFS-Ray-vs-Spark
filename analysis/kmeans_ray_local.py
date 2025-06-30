@@ -1,5 +1,7 @@
 import os
+import sys
 import time
+import argparse
 import ray
 import pandas as pd
 import numpy as np
@@ -53,12 +55,24 @@ def distributed_kmeans_local(config):
     return np.mean(results)
 
 def main():
+    parser = argparse.ArgumentParser(description='Run distributed K-means clustering using Ray')
+    parser.add_argument('-f', '--file', 
+                       required=True,
+                       help='Path to the CSV file to process')
+    
+    args = parser.parse_args()
+    file_path = args.file
+    
+    if not os.path.exists(file_path):
+        print(f"Error: File '{file_path}' does not exist.")
+        sys.exit(1)
+    
     start_time = time.time()
     ray.init(address='auto')
     end_time_system = time.time()
 
     config = {
-        "local_path": "/data/data_reddit_100M.csv",
+        "local_path": file_path,
         "n_clusters": 16,
         "num_nodes": get_num_nodes(),
         "cpus_per_node": 4,
