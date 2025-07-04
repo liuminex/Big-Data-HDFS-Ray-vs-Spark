@@ -39,6 +39,12 @@ hdfs dfs -ls /data/ # verify
 
 ## kmeans
 
+### Spark
+```bash
+cd ~/project/analysis
+spark-submit kmeans_spark.py -f data_reddit_100M.csv
+```
+#### Ray
 ```bash
 export CLASSPATH="$HADOOP_HOME/etc/hadoop:$HADOOP_HOME/share/hadoop/common/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs:$HADOOP_HOME/share/hadoop/hdfs/lib/*:$HADOOP_HOME/share/hadoop/hdfs/*"
 ```

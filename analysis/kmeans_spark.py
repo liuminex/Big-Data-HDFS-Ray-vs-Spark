@@ -98,17 +98,8 @@ def main():
     start_time = time.time()
     
     # Initialize Spark Session with reduced memory requirements
-    spark = SparkSession \
-        .builder \
-        .appName("kmeans_spark_hdfs") \
-        .master("yarn") \
-        .config("spark.executor.instances", "2") \
-        .config("spark.executor.cores", "2") \
-        .config("spark.executor.memory", "512m") \
-        .config("spark.executor.memoryOverhead", "128m") \
-        .config("spark.driver.memory", "512m") \
-        .config("spark.sql.adaptive.enabled", "true") \
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+    spark = SparkSession.builder \
+        .appName("kmeans_spark") \
         .getOrCreate()
     
     end_time_system = time.time()
@@ -116,9 +107,7 @@ def main():
     config = {
         "datafile": datafile,
         "n_clusters": 16,
-        "num_executors": 2,
-        "cores_per_executor": 2,
-        "batch_size_rows": 50000  # Process in batches of 50k rows
+        "batch_size_rows": 50000
     }
     
     print(f"Starting K-means clustering with config: {config}")
@@ -130,11 +119,24 @@ def main():
     # Display results
     display_results(config, start_time, end_time, end_time_system, res_score)
     
-    print(f"\n=== Timing Results ===")
-    print(f"System initialization time: {end_time_system - start_time:.2f} seconds")
-    print(f"Total execution time: {end_time - start_time:.2f} seconds")
-    print(f"Algorithm execution time: {end_time - end_time_system:.2f} seconds")
-    print(f"Final Calinski-Harabasz Score: {res_score}")
+    # Create results summary
+    results_text = f"""
+    === K-means Clustering Results ===
+    System initialization time: {end_time_system - start_time:.2f} seconds
+    Total execution time: {end_time - start_time:.2f} seconds
+    Algorithm execution time: {end_time - end_time_system:.2f} seconds
+    Final Calinski-Harabasz Score: {res_score:.4f}
+    Configuration: {config}
+    """
+    
+    # Print results
+    print(results_text)
+    
+    results_filename = f"kmeans_spark_results_{datafile.replace('.csv', '')}.txt"
+    with open(f'results/{results_filename}', 'w') as f:
+        f.write(results_text)
+    
+    print(f"Results saved to: {results_filename}")
     
     spark.stop()
 
