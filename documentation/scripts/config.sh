@@ -5,28 +5,26 @@ SPARK_LINK="https://dlcdn.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.t
 MAX_MEM="1024" # memory to allocate for yarn (must be less than VM memory)
 
 
+MASTER_IP="192.168.56.104"
+WORKER_IP="192.168.56.105"
+SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
+VM_USERNAME="ubuntu"
+VM_PASSWORD="ubuntu"
 
-MASTER_IP="192.168.2.121" # local IP
-WORKER_IP="192.168.2.122" # local IP
-SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
-VM_USERNAME="t" # username for SSH
-VM_PASSWORD="1" # VM password
-
-setup="manos"
-
-if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then
-    setup="jason"
+if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then # setup is jason
+    MASTER_IP="192.168.2.121" # local IP
+    WORKER_IP="192.168.2.122" # local IP
+    SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
+    VM_USERNAME="t" # username for SSH
+    VM_PASSWORD="t" # VM password
+    MAX_MEM="512"
 fi
 
-if [ "$setup" == "manos" ]; then # Manos's Setup
-    
-    MASTER_IP="192.168.56.104"
-    WORKER_IP="192.168.56.105"
-    SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
-    VM_USERNAME="ubuntu"
-    VM_PASSWORD="ubuntu"
 
-fi
+# if whoami == vm username run a sudo echo and automatically provide the password to skip prompts
+if [ "$(whoami)" == "$VM_USERNAME" ]; then
+    echo "$VM_PASSWORD" | sudo -S echo "Running as $VM_USERNAME, sudo commands will not prompt for password."
+fi 
 
 
 # printing to terminal
