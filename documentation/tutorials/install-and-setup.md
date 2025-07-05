@@ -75,6 +75,7 @@ After you update/get the files:
 cd ~/project/documentation/scripts
 ./1-hosts-ssh.sh
 sudo reboot
+
 cd ~/project/documentation/scripts
 ./2-java.sh
 ./3-install-hadoop-spark.sh

@@ -21,6 +21,12 @@ if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then # setup is jason
 fi
 
 
+# if whoami == vm username run a sudo echo and automatically provide the password to skip prompts
+if [ "$(whoami)" == "$VM_USERNAME" ]; then
+    echo "$VM_PASSWORD" | sudo -S echo "Running as $VM_USERNAME, sudo commands will not prompt for password."
+fi 
+
+
 # printing to terminal
 
 RED='\033[0;31m'
