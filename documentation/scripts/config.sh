@@ -5,27 +5,19 @@ SPARK_LINK="https://dlcdn.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.t
 MAX_MEM="1024" # memory to allocate for yarn (must be less than VM memory)
 
 
+MASTER_IP="192.168.56.104"
+WORKER_IP="192.168.56.105"
+SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
+VM_USERNAME="ubuntu"
+VM_PASSWORD="ubuntu"
 
-MASTER_IP="192.168.2.121" # local IP
-WORKER_IP="192.168.2.122" # local IP
-SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
-VM_USERNAME="t" # username for SSH
-VM_PASSWORD="1" # VM password
-
-setup="manos"
-
-if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then
-    setup="jason"
-fi
-
-if [ "$setup" == "manos" ]; then # Manos's Setup
-    
-    MASTER_IP="192.168.56.104"
-    WORKER_IP="192.168.56.105"
-    SOURCE_DIR=~/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark
-    VM_USERNAME="ubuntu"
-    VM_PASSWORD="ubuntu"
-
+if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then # setup is jason
+    MASTER_IP="192.168.2.121" # local IP
+    WORKER_IP="192.168.2.122" # local IP
+    SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
+    VM_USERNAME="t" # username for SSH
+    VM_PASSWORD="t" # VM password
+    MAX_MEM="512"
 fi
 
 
