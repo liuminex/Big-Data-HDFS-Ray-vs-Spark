@@ -33,8 +33,7 @@ def generate_synthetic_reddit_data(target_size_bytes: str, input_file: str):
     existing_ids = set(df['POST_ID'].astype(str).values)
 
     # Estimate average row size
-    sample_row_str = df.iloc[0].to_csv(header=False, index=False).encode('utf-8')
-    avg_row_size = len(sample_row_str)
+    avg_row_size = 240
     print(f"Estimated average row size: {avg_row_size} bytes")
 
     rows_needed = (target_size_bytes - original_size) // avg_row_size

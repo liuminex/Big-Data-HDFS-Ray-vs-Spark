@@ -17,7 +17,7 @@ if [ "$(whoami)" == "aa" ] || [ "$(whoami)" == "t" ]; then # setup is jason
     SOURCE_DIR=~/Videos/Big-Data-HDFS-Ray-vs-Spark
     VM_USERNAME="t" # username for SSH
     VM_PASSWORD="t" # VM password
-    MAX_MEM="512"
+    MAX_MEM="1024"
 fi
 
 
