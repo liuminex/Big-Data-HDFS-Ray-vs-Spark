@@ -42,7 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description='Count triangles in a graph using Ray')
     parser.add_argument('-f', '--file', type=str, default='../data/data_reddit_100M.csv',
                         help='Path to the input CSV file')
-    parser.add_argument('-c', '--chunks', type=int, default=8,
+    parser.add_argument('-c', '--chunks', type=int, default=4,
                         help='Number of chunks to split the nodes into')
     args = parser.parse_args()
 
@@ -77,19 +77,35 @@ def main():
         for i in range(num_chunks)
     ]
 
-    ray.init()
+    # Initialize Ray with cluster connection
+    ray.init(address='auto')
+    
+    # Print cluster information
+    print(f"Ray cluster nodes: {len(ray.nodes())}")
+    for node in ray.nodes():
+        print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")
 
-    @ray.remote
+    @ray.remote(num_cpus=1)  # Request 1 CPU per task to force distribution
     def compute_triangles(G, nodes):
+        # Show which node is processing this chunk
+        node_ip = ray._private.services.get_node_ip_address()
+        print(f"Computing triangles on node: {node_ip} for {len(nodes)} nodes")
         return nx.triangles(G, nodes=nodes)
 
     A = time.time()
     G_ref = ray.put(G)
 
-    results = []
-    for chunk in node_chunks:
-        result = ray.get(compute_triangles.remote(G_ref, chunk))
-        results.append(result)
+    # Submit all tasks in parallel (don't wait for results yet)
+    print(f"Submitting {len(node_chunks)} tasks to Ray cluster...")
+    futures = []
+    for i, chunk in enumerate(node_chunks):
+        future = compute_triangles.remote(G_ref, chunk)
+        futures.append(future)
+        print(f"Submitted task {i+1}/{len(node_chunks)}")
+    
+    # Now wait for all results to complete
+    print("Waiting for all tasks to complete...")
+    results = ray.get(futures)
 
     end_time = time.time()
     
