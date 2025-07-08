@@ -4,27 +4,57 @@ from graphframes import GraphFrame
 from sparkmeasure import StageMetrics
 import sys
 import time
+import argparse
+import os
 
-# pip install graphframes
-# pip install sparkmeasure
+def display_results(config, start_time, end_time, total_triangles, triangle_counts_sample):
+    execution_time = end_time - start_time
+    
+    results_text = f"""
+Dataset: {config['file']}
+Total execution time: {execution_time:.2f} seconds
+Number of executors: {config['num_executors']}
+Total triangles found: {total_triangles}
 
+Sample triangle counts per node:
+"""
+    
+    for row in triangle_counts_sample:
+        results_text += f"Node {row['id']}: {row['count']} triangles\n"
+    
+    print(results_text)
+    
+    timestamp = int(time.time())
+    filename = f'counting_triangles_spark_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
+    if not os.path.exists('results'):
+        os.makedirs('results')
+    with open(f'results/{filename}', 'w') as f:
+        f.write(results_text)
+    
+    print(f"Results saved to results/{filename}")
 
 def main():
-    # Parse command line for executor count or default
-    if len(sys.argv) > 1:
-        num_executors = sys.argv[1]
-    else:
-        num_executors = "4"
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Run triangle counting using Spark')
+    parser.add_argument('-f', '--file', 
+                       required=True,
+                       help='Name of the CSV file in HDFS /data/ directory')
+    parser.add_argument('--num-executors', type=str, default="4",
+                       help='Number of Spark executors (default: 4)')
+    
+    args = parser.parse_args()
+    datafile = args.file
+    num_executors = args.num_executors
 
+    # Optimized Spark configuration for 2GB YARN memory limit
     spark = SparkSession.builder \
         .appName("triangle counting") \
         .master("yarn") \
         .config("spark.executor.instances", num_executors) \
         .config("spark.executor.memory", "512m") \
         .config("spark.executor.memoryOverhead", "128m") \
-        .config("spark.jars.packages", "ch.cern.sparkmeasure:spark-measure_2.12:0.23,graphframes:graphframes:0.8.3-spark3.5-s_2.12") \
+        .config("spark.jars.packages", "ch.cern.sparkmeasure:spark-measure_2.12:0.23,graphframes:graphframes:0.8.4-spark3.5-s_2.12") \
         .getOrCreate()
-
 
     sc = spark.sparkContext
     stagemetrics = StageMetrics(spark)
@@ -42,12 +72,12 @@ def main():
         .option("comment", "#") \
         .option("delimiter", ",") \
         .schema(schema) \
-        .load("hdfs:///data/data_reddit_10M.csv")
+        .load(f"hdfs:///data/{datafile}")
 
     # Create vertices DataFrame (unique nodes)
     vertices_df = edges_df.select("src").union(edges_df.select("dst")).distinct() \
         .withColumnRenamed("src", "id")
-
+    
     # Build the graph
     graph = GraphFrame(vertices_df, edges_df)
 
@@ -57,16 +87,19 @@ def main():
     # Collect results (if you want per-node counts)
     triangle_counts = triangle_df.select("id", "count").collect()
 
-    # Print triangle counts per chunk equivalent (optional)
-    print("Sample triangle counts:")
-    for row in triangle_counts[:10]:  # print first 10
-        print(f"Node {row['id']} has {row['count']} triangles")
-
-    # Or sum all triangles
+    # Sum all triangles
     total_triangles = triangle_df.agg({"count": "sum"}).collect()[0][0]
-    print(f"Total number of triangles in the graph: {total_triangles}")
+    
+    end_time = time.time()
 
-    print("Total Time:", time.time() - start_time)
+    # Create config dictionary for display_results
+    config = {
+        'file': datafile,
+        'num_executors': num_executors
+    }
+    
+    # Display and save results
+    display_results(config, start_time, end_time, total_triangles, triangle_counts[:10])
 
     stagemetrics.end()
     stagemetrics.print_report()
