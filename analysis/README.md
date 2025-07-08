@@ -49,6 +49,34 @@ spark-submit kmeans_spark.py -f data_reddit_100M.csv
 export CLASSPATH="$HADOOP_HOME/etc/hadoop:$HADOOP_HOME/share/hadoop/common/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs:$HADOOP_HOME/share/hadoop/hdfs/lib/*:$HADOOP_HOME/share/hadoop/hdfs/*"
 ```
 
+## Triangle Counting
+Example parameters for Triangle Counting:
+### Spark
+```bash
+cd ~/project/analysis
+spark-submit counting_triangles_spark.py -f data_reddit_100M.csv --num-executors 4
+```
+
+### Ray
+```bash
+cd ~/project/analysis
+ray job submit -- python counting_triangles_ray.py -f data_reddit_100M.csv -c 4
+```
+
+## PageRank
+Example parameters for PageRank:
+### Spark
+```bash
+cd ~/project/analysis
+spark-submit pagerank_spark.py -f data_reddit_100M.csv --damping-factor 0.85 --max-iterations 20 --convergence-threshold 1e-6
+```
+
+### Ray
+```bash
+cd ~/project/analysis
+ray job submit -- python pagerank_ray.py -f data_reddit_100M.csv --damping-factor 0.85 --max-iterations 20 --convergence-threshold 1e-6 --batch-size 67108864
+```
+
 
 
 
