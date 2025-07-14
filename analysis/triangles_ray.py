@@ -40,7 +40,7 @@ Triangle counts per chunk:
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Count triangles in a graph using Ray')
-    parser.add_argument('-f', '--file', type=str, default='../data/data_reddit_100M.csv',
+    parser.add_argument('-f', '--file', type=str, default='data_reddit_100M.csv',
                         help='Path to the input CSV file')
     parser.add_argument('-c', '--chunks', type=int, default=4,
                         help='Number of chunks to split the nodes into')
@@ -50,7 +50,7 @@ def main():
     lines = []
     skip_headers = True
 
-    with open(args.file, 'r') as file:
+    with open(f'../data/{args.file}', 'r') as file:
         for raw_line in file:
             line = raw_line.strip()
             if not line or line.startswith("#"):
@@ -66,46 +66,83 @@ def main():
     G = nx.parse_edgelist(lines, nodetype=str, create_using=nx.DiGraph())
     G = G.to_undirected()
 
-    num_chunks = args.chunks
-
+    num_chunks = min(args.chunks, 8)
+    
     node_list = list(G.nodes())
-    node_chunk_size = len(node_list) // num_chunks
+    # Ensure chunks are large enough to be worthwhile but not too large for memory
+    min_chunk_size = max(100, len(node_list) // 16)  # At least 100 nodes per chunk
+    node_chunk_size = max(min_chunk_size, len(node_list) // num_chunks)
 
     node_chunks = [
         node_list[node_chunk_size * i : node_chunk_size * (i + 1)] if i < num_chunks - 1
         else node_list[node_chunk_size * i :]
         for i in range(num_chunks)
     ]
+    
+    # Filter out empty chunks
+    node_chunks = [chunk for chunk in node_chunks if len(chunk) > 0]
+    
+    print(f"Processing {len(node_chunks)} chunks with average size: {len(node_list) // len(node_chunks) if node_chunks else 0}")
 
-    # Initialize Ray with cluster connection
+    # Initialize Ray - connect to existing cluster
     ray.init(address='auto')
     
     # Print cluster information
     print(f"Ray cluster nodes: {len(ray.nodes())}")
+    print(f"Ray cluster resources: {ray.cluster_resources()}")
     for node in ray.nodes():
-        print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")
-
-    @ray.remote(num_cpus=1)  # Request 1 CPU per task to force distribution
+        print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")    
+    @ray.remote(num_cpus=1, memory=400*1024*1024, scheduling_strategy="SPREAD") 
     def compute_triangles(G, nodes):
         # Show which node is processing this chunk
         node_ip = ray._private.services.get_node_ip_address()
         print(f"Computing triangles on node: {node_ip} for {len(nodes)} nodes")
-        return nx.triangles(G, nodes=nodes)
+        
+        # Process nodes in reasonable batches
+        batch_size = min(500, len(nodes))
+        total_triangles = {}
+        
+        for i in range(0, len(nodes), batch_size):
+            batch_nodes = nodes[i:i+batch_size]
+            batch_triangles = nx.triangles(G, nodes=batch_nodes)
+            total_triangles.update(batch_triangles)
+            
+            # Clear intermediate data
+            del batch_triangles
+        
+        return total_triangles
 
     A = time.time()
+    
+    # Store graph in Ray object store for efficient sharing
     G_ref = ray.put(G)
 
-    # Submit all tasks in parallel (don't wait for results yet)
+    # Submit tasks in controlled batches to avoid overwhelming the cluster
     print(f"Submitting {len(node_chunks)} tasks to Ray cluster...")
-    futures = []
-    for i, chunk in enumerate(node_chunks):
-        future = compute_triangles.remote(G_ref, chunk)
-        futures.append(future)
-        print(f"Submitted task {i+1}/{len(node_chunks)}")
+    batch_size = min(4, len(node_chunks))  # Process max 4 chunks at a time
+    all_results = []
     
-    # Now wait for all results to complete
-    print("Waiting for all tasks to complete...")
-    results = ray.get(futures)
+    for i in range(0, len(node_chunks), batch_size):
+        batch_chunks = node_chunks[i:i + batch_size]
+        print(f"Processing batch {i//batch_size + 1}/{(len(node_chunks) + batch_size - 1)//batch_size}")
+        
+        # Submit batch of tasks
+        futures = []
+        for j, chunk in enumerate(batch_chunks):
+            future = compute_triangles.remote(G_ref, chunk)
+            futures.append(future)
+            print(f"  Submitted task {i + j + 1}/{len(node_chunks)}")
+        
+        # Wait for batch to complete before submitting next batch
+        batch_results = ray.get(futures)
+        all_results.extend(batch_results)
+        
+        # Clear futures to free memory
+        del futures
+        del batch_results
+    
+    print("All tasks completed!")
+    results = all_results
 
     end_time = time.time()
     
@@ -124,5 +161,6 @@ def main():
     ray.shutdown()
 
 # Run main with peak memory measurement
-mem_usage = memory_usage(main, interval=0.1, max_usage=True)
-print(f"Peak memory usage: {mem_usage} MB")
+if __name__ == "__main__":
+    mem_usage = memory_usage(main, interval=0.1, max_usage=True)
+    print(f"Peak memory usage: {mem_usage} MB")
