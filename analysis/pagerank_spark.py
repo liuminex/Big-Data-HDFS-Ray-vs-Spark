@@ -44,27 +44,34 @@ Top {len(top_nodes)} nodes by PageRank score:
 
 
 def build_graph_spark(spark, config):
-    # Build graph structure from Reddit hyperlinks data
+    # Build graph structure from Reddit hyperlinks data with optimized partitioning
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
     
-    # Read the CSV file from HDFS
-    df = spark.read.option("header", "true").option("inferSchema", "true").csv(hdfs_path)
+    # Read the CSV file from HDFS with optimized partitioning
+    df = spark.read.option("header", "true") \
+        .option("inferSchema", "true") \
+        .option("multiline", "false") \
+        .csv(hdfs_path) \
+        .repartition(16)  # Ensure good distribution across executors
     
-    # Select source and target subreddits
+    # Cache the initial dataframe since we'll use it multiple times
+    df.cache()
+    
+    # Select source and target subreddits with better memory management
     edges = df.select(
         col("SOURCE_SUBREDDIT").alias("source"),
         col("TARGET_SUBREDDIT").alias("target")
     ).filter(
         col("source").isNotNull() & col("target").isNotNull()
-    ).distinct()
+    ).distinct().persist()  # Persist edges as they're used multiple times
     
     # Get all unique nodes
     source_nodes = edges.select(col("source").alias("node"))
     target_nodes = edges.select(col("target").alias("node"))
-    nodes = source_nodes.union(target_nodes).distinct()
+    nodes = source_nodes.union(target_nodes).distinct().persist()
     
     # Calculate out-degree for each node
-    out_degrees = edges.groupBy("source").agg(count("target").alias("out_degree"))
+    out_degrees = edges.groupBy("source").agg(count("target").alias("out_degree")).persist()
     
     print(f"Graph statistics:")
     print(f"  Total nodes: {nodes.count()}")
@@ -82,30 +89,30 @@ def pagerank_spark(spark, config):
     total_nodes = nodes.count()
     initial_score = 1.0 / total_nodes
     
-    # Initialize current scores
-    current_scores = nodes.withColumn("score", lit(initial_score))
+    # Initialize current scores with proper partitioning
+    current_scores = nodes.withColumn("score", lit(initial_score)).persist()
     
     damping_factor = config["damping_factor"]
     convergence_threshold = config["convergence_threshold"]
     max_iterations = config["max_iterations"]
     
-    print(f"Starting PageRank iterations...")
+    print(f"Starting PageRank iterations with {total_nodes} nodes...")
     
     for iteration in range(max_iterations):
         print(f"Iteration {iteration + 1}/{max_iterations}")
         
-        # Join current scores with edges and out-degrees
+        # Join current scores with edges and out-degrees with broadcast optimization
         scores_with_edges = edges.join(current_scores, edges.source == current_scores.node, "inner") \
                                 .join(out_degrees, edges.source == out_degrees.source, "inner") \
                                 .select(
                                     col("target").alias("node"),
                                     (col("score") / col("out_degree")).alias("contribution")
-                                )
+                                ).repartition(16, "node")  # Repartition by node for better aggregation
         
         # Sum contributions for each node
         new_contributions = scores_with_edges.groupBy("node").agg(
             spark_sum("contribution").alias("total_contribution")
-        )
+        ).persist()
         
         # Calculate new PageRank scores
         new_scores = current_scores.join(new_contributions, "node", "left") \
@@ -115,29 +122,45 @@ def pagerank_spark(spark, config):
                                   .withColumn("new_score", 
                                             (1.0 - damping_factor) / total_nodes + 
                                             damping_factor * col("total_contribution")) \
-                                  .select("node", col("new_score").alias("score"))
+                                  .select("node", col("new_score").alias("score")) \
+                                  .persist()
         
         # Check for convergence
         if iteration > 0:
-            # Calculate the difference between old and new scores
+            # Calculate the difference between old and new scores with sampling for large datasets
+            sample_fraction = min(1.0, 10000.0 / total_nodes)  # Sample for very large graphs
             score_diff = current_scores.alias("old").join(new_scores.alias("new"), "node", "inner") \
+                                     .sample(sample_fraction) \
                                      .withColumn("diff", 
                                                (col("old.score") - col("new.score")) * 
                                                (col("old.score") - col("new.score"))) \
                                      .agg(spark_sum("diff").alias("total_diff")) \
                                      .collect()[0]["total_diff"]
             
+            # Adjust for sampling
+            if sample_fraction < 1.0:
+                score_diff = score_diff / sample_fraction
+                
             print(f"  Convergence metric: {score_diff:.8f}")
             
             if score_diff < convergence_threshold:
                 print(f"Converged after {iteration + 1} iterations")
                 break
         
+        # Unpersist old scores to free memory
+        current_scores.unpersist()
+        new_contributions.unpersist()
         current_scores = new_scores
     
     # Get top nodes by PageRank score
     top_nodes = current_scores.orderBy(col("score").desc()).limit(10).collect()
     top_nodes_list = [(row.node, row.score) for row in top_nodes]
+    
+    # Clean up persisted DataFrames
+    current_scores.unpersist()
+    edges.unpersist()
+    nodes.unpersist()
+    out_degrees.unpersist()
     
     return iteration + 1, top_nodes_list
 
@@ -165,12 +188,29 @@ def main():
     
     start_time = time.time()
     
-    # Initialize Spark Session
+    # Initialize Spark Session with optimized configuration for 2VMs with 4GB RAM each
     spark = SparkSession.builder \
-        .appName("PageRank") \
+        .appName("PageRank_Distributed") \
+        .master("yarn") \
+        .config("spark.executor.instances", "4") \
+        .config("spark.executor.cores", "2") \
+        .config("spark.executor.memory", "1200m") \
+        .config("spark.executor.memoryOverhead", "300m") \
+        .config("spark.driver.memory", "800m") \
+        .config("spark.driver.maxResultSize", "400m") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB") \
+        .config("spark.sql.adaptive.skewJoin.enabled", "true") \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+        .config("spark.kryo.registrationRequired", "false") \
+        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+        .config("spark.sql.shuffle.partitions", "16") \
+        .config("spark.default.parallelism", "16") \
+        .config("spark.sql.files.maxPartitionBytes", "64MB") \
+        .config("spark.dynamicAllocation.enabled", "false") \
+        .config("spark.network.timeout", "600s") \
+        .config("spark.executor.heartbeatInterval", "60s") \
         .getOrCreate()
     
     try:
