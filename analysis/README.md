@@ -77,6 +77,20 @@ cd ~/project/analysis
 ray job submit -- python pagerank_ray.py -f data_reddit_100M.csv --damping-factor 0.85 --max-iterations 20 --convergence-threshold 1e-6 --batch-size 67108864
 ```
 
+## ETL (Extract, Transform, Load)
+Example parameters for ETL benchmarks:
+### Spark
+```bash
+cd ~/project/analysis
+spark-submit etl_spark.py -f data_reddit_100M.csv --num-executors 4 --executor-memory 2g --partitions 16
+```
+
+### Ray
+```bash
+cd ~/project/analysis
+ray job submit -- python etl_ray.py -f data_reddit_100M.csv -c 4 --memory 8GB
+```
+
 
 
 
