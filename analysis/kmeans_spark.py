@@ -1,4 +1,3 @@
-# filepath: /home/manos/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark/analysis/kmeans_spark.py
 import sys
 import os
 import time
