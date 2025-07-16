@@ -1,144 +1,190 @@
+# filepath: /home/manos/Documents/NTUA/Semesters/9/BigData/Big-Data-HDFS-Ray-vs-Spark/analysis/kmeans_spark.py
 import sys
 import os
 import time
 import argparse
 import numpy as np
-import pandas as pd
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-from sklearn.cluster import KMeans
-from sklearn.metrics import calinski_harabasz_score
+from pyspark.ml.clustering import KMeans
+from pyspark.ml.feature import VectorAssembler
+from pyspark.sql.functions import col, count
+import resource
 
 os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
 
 
-def display_results(config, start_time, end_time, end_time_system, calinski_harabasz_res):
-    with open('results.txt', 'w') as f:
-        f.write(f"Config: {config}\n")
-        f.write(f"Start Time: {start_time}\n")
-        f.write(f"End Time: {end_time}\n")
-        f.write(f"System Init Time: {end_time_system}\n")
-        f.write(f"Calinski-Harabasz Score: {calinski_harabasz_res}\n")
+def display_results(config, start_time, end_time, centroids, sample_data):
+    execution_time = end_time - start_time
+    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # MB on Linux
+    
+    results_text = f"""
+Dataset: {config['datafile']}
+Total execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory:.2f} MB
+Number of clusters (K): {config['k_clusters']}
+Maximum iterations: {config['max_iterations']}
+
+Final Centroids:
+"""
+    
+    for i, centroid in enumerate(centroids):
+        results_text += f"Cluster {i}: {centroid}\n"
+    
+    results_text += f"\nSample clustered data:\n"
+    for row in sample_data:
+        results_text += f"Features: {row.features}, Cluster: {row.cluster}\n"
+    
+    print(results_text)
+    
+    timestamp = int(time.time())
+    filename = f'kmeans_spark_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
+    if not os.path.exists('results'):
+        os.makedirs('results')
+    with open(f'results/{filename}', 'w') as f:
+        f.write(results_text)
+    
+    print(f"Results saved to results/{filename}")
 
 
-def process_batch_spark(df_batch, config):
-    """Process a batch of data and return Calinski-Harabasz score"""
-    # Convert categorical columns to numeric codes
-    for col_name in df_batch.columns:
-        if df_batch[col_name].dtype == 'object':
-            df_batch[col_name] = df_batch[col_name].astype('category').cat.codes
-        elif pd.api.types.is_datetime64_any_dtype(df_batch[col_name]):
-            # Convert datetime to numeric timestamp
-            df_batch[col_name] = pd.to_numeric(df_batch[col_name])
-        elif not pd.api.types.is_numeric_dtype(df_batch[col_name]):
-            # Convert any other non-numeric types to category codes
-            df_batch[col_name] = df_batch[col_name].astype('category').cat.codes
-    
-    # Fill NaNs
-    df_batch = df_batch.fillna(-1)
-    
-    # Ensure all columns are numeric
-    df_batch = df_batch.select_dtypes(include=[np.number])
-    
-    # Check if we have any data left after filtering
-    if df_batch.empty or len(df_batch.columns) == 0:
-        print("Warning: No numeric columns found in batch")
-        return 0.0
-    
-    data = df_batch.values
-    
-    # Apply K-means clustering
-    kmeans = KMeans(n_clusters=config["n_clusters"], random_state=42)
-    kmeans.fit(data)
-    
-    # Calculate Calinski-Harabasz score
-    return calinski_harabasz_score(data, kmeans.labels_)
-
-
-def distributed_kmeans_spark(spark, config):
-    """Main distributed K-means function using Spark"""
-    # Read CSV file from HDFS
+def load_and_prepare_data(spark, config):
+    # Load data from HDFS with optimized partitioning
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
     
-    # Read the entire CSV file
-    df_spark = spark.read.option("header", "true").option("inferSchema", "true").csv(hdfs_path)
+    print("Loading data from HDFS...")
+    df = spark.read.format("csv") \
+           .option("header", "true") \
+           .option("inferSchema", "true") \
+           .option("multiline", "false") \
+           .csv(hdfs_path) \
+           .repartition(16)
     
-    # Convert to Pandas DataFrame for processing (in real scenarios, you'd want to keep it as Spark DataFrame)
-    df = df_spark.toPandas()
+    # Cache the initial dataframe since we'll use it multiple times
+    df.cache()
     
-    # Process data in batches
-    batch_size_rows = config["batch_size_rows"]
-    scores = []
+    print(f"Dataset statistics:")
+    print(f"  Total rows: {df.count()}")
+    print(f"  Total columns: {len(df.columns)}")
     
-    num_batches = (len(df) + batch_size_rows - 1) // batch_size_rows
+    # Select features for clustering
+    selected_features = ['FracSpecialChars', 'NumWords',
+                        'AvgCharsPerSentence', 'AvgWordsPerSentence', 'AutomatedReadabilityIndex',
+                        'SentimentPositive', 'SentimentNegative', 'SentimentCompound']
     
-    for i in range(num_batches):
-        start_idx = i * batch_size_rows
-        end_idx = min((i + 1) * batch_size_rows, len(df))
-        batch = df.iloc[start_idx:end_idx].copy()
-        
-        if len(batch) > config["n_clusters"]:  # Need enough samples for clustering
-            score = process_batch_spark(batch, config)
-            scores.append(score)
-            print(f"Processed batch {i+1}/{num_batches}, score: {score}")
+    print(f"  Selected features: {selected_features}")
     
-    return np.mean(scores) if scores else 0.0
+    # Assemble features into vector format
+    assembler = VectorAssembler(
+        inputCols=selected_features,
+        outputCol="features",
+        handleInvalid="skip"
+    )
+    
+    df_features = assembler.transform(df).select("features").persist()
+    
+    # Show statistics of prepared data
+    features_count = df_features.count()
+    print(f"  Rows with valid features: {features_count}")
+    
+    return df_features
+
+
+def kmeans_spark(spark, config):
+    # Distributed K-Means implementation using Spark MLlib
+    print("Preparing data for K-Means clustering...")
+    df_features = load_and_prepare_data(spark, config)
+    
+    K = config["k_clusters"]
+    MAX_ITER = config["max_iterations"]
+    
+    print(f"Starting K-Means clustering with K={K}, max_iter={MAX_ITER}...")
+    
+    # Configure and train K-Means model
+    kmeans = KMeans() \
+        .setK(K) \
+        .setMaxIter(MAX_ITER) \
+        .setFeaturesCol("features") \
+        .setPredictionCol("cluster") \
+        .setSeed(42)
+    
+    # Fit the model
+    model = kmeans.fit(df_features)
+    
+    # Get cluster centroids
+    centroids = model.clusterCenters()
+    
+    # Transform data to get cluster assignments
+    df_clustered = model.transform(df_features)
+    
+    # Get sample of clustered data for display
+    sample_data = df_clustered.limit(5).collect()
+    
+    # Show cluster distribution
+    cluster_counts = df_clustered.groupBy("cluster").count().orderBy("cluster").collect()
+    print(f"\nCluster distribution:")
+    for row in cluster_counts:
+        print(f"  Cluster {row.cluster}: {row.count} points")
+    
+    # Clean up persisted DataFrames
+    df_features.unpersist()
+    
+    return centroids, sample_data
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run distributed K-means clustering using Spark')
+    parser = argparse.ArgumentParser(description='Run distributed K-Means clustering using Spark')
     parser.add_argument('-f', '--file', 
                        required=True,
                        help='Name of the CSV file in HDFS /data/ directory')
+    parser.add_argument('-k', '--clusters', type=int, default=3,
+                       help='Number of clusters (default: 3)')
+    parser.add_argument('--max-iterations', type=int, default=20,
+                       help='Maximum number of iterations (default: 20)')
     
     args = parser.parse_args()
-    datafile = args.file
+    
+    config = {
+        "datafile": args.file,
+        "k_clusters": args.clusters,
+        "max_iterations": args.max_iterations
+    }
     
     start_time = time.time()
     
-    # Initialize Spark Session with reduced memory requirements
+    # Initialize Spark Session with optimized configuration for 2VMs with 4GB RAM each
     spark = SparkSession.builder \
-        .appName("kmeans_spark") \
+        .appName("KMeans_Distributed") \
+        .master("yarn") \
+        .config("spark.executor.instances", "4") \
+        .config("spark.executor.cores", "2") \
+        .config("spark.executor.memory", "1200m") \
+        .config("spark.executor.memoryOverhead", "300m") \
+        .config("spark.driver.memory", "800m") \
+        .config("spark.driver.maxResultSize", "400m") \
+        .config("spark.sql.adaptive.enabled", "true") \
+        .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB") \
+        .config("spark.sql.adaptive.skewJoin.enabled", "true") \
+        .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+        .config("spark.kryo.registrationRequired", "false") \
+        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+        .config("spark.sql.shuffle.partitions", "16") \
+        .config("spark.default.parallelism", "16") \
+        .config("spark.sql.files.maxPartitionBytes", "64MB") \
+        .config("spark.dynamicAllocation.enabled", "false") \
+        .config("spark.network.timeout", "600s") \
+        .config("spark.executor.heartbeatInterval", "60s") \
         .getOrCreate()
     
-    end_time_system = time.time()
-    
-    config = {
-        "datafile": datafile,
-        "n_clusters": 16,
-        "batch_size_rows": 50000
-    }
-    
-    print(f"Starting K-means clustering with config: {config}")
-    
-    # Run distributed K-means
-    res_score = distributed_kmeans_spark(spark, config)
-    end_time = time.time()
-    
-    # Display results
-    display_results(config, start_time, end_time, end_time_system, res_score)
-    
-    # Create results summary
-    results_text = f"""
-    === K-means Clustering Results ===
-    System initialization time: {end_time_system - start_time:.2f} seconds
-    Total execution time: {end_time - start_time:.2f} seconds
-    Algorithm execution time: {end_time - end_time_system:.2f} seconds
-    Final Calinski-Harabasz Score: {res_score:.4f}
-    Configuration: {config}
-    """
-    
-    # Print results
-    print(results_text)
-    
-    results_filename = f"kmeans_spark_results_{datafile.replace('.csv', '')}.txt"
-    with open(f'results/{results_filename}', 'w') as f:
-        f.write(results_text)
-    
-    print(f"Results saved to: {results_filename}")
-    
-    spark.stop()
+    try:
+        print("Starting distributed K-Means clustering with Spark...")
+        centroids, sample_data = kmeans_spark(spark, config)
+        
+        end_time = time.time()
+        display_results(config, start_time, end_time, centroids, sample_data)
+        
+    finally:
+        spark.stop()
 
 
 if __name__ == "__main__":
