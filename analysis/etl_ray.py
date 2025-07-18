@@ -29,14 +29,14 @@ Peak memory usage: {peak_memory:.2f} MB
 Number of workers: {config.get('num_workers', 'auto')}
 
 ETL Pipeline Operations Completed:
-1. Distributed Data Extraction from HDFS
-2. Parallel Data Quality Assessment
-3. Distributed Text Processing and Feature Engineering
-4. Parallel Sentiment Analysis Aggregations
-5. Distributed Time-based Aggregations
-6. Complex Distributed Joins and Analytics
-7. Parallel Data Validation and Cleansing
-8. Distributed Results Export
+1. Data Extraction from HDFS
+2. Data Quality Assessment
+3. Text Processing and Feature Engineering
+4. Sentiment Analysis Aggregations
+5. Time-based Aggregations
+6. Complex Joins and Window Functions
+7. Data Validation and Cleansing
+8. Results Export
 
 Sample Transformation Results:
 """
@@ -58,7 +58,7 @@ Sample Transformation Results:
 
 @ray.remote(num_cpus=1, memory=256*1024*1024, scheduling_strategy="SPREAD")
 def extract_data_chunk(hdfs_path: str, start_byte: int, chunk_size: int, chunk_id: int):
-    """Extract a chunk of data from HDFS using hadoop fs command"""
+    # Extract a chunk of data from HDFS using hadoop fs command
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(extract_data_chunk-{chunk_id}) Processing on node: {node_ip}")
     
@@ -100,7 +100,7 @@ def extract_data_chunk(hdfs_path: str, start_byte: int, chunk_size: int, chunk_i
 
 @ray.remote(num_cpus=1, memory=256*1024*1024)
 def assess_data_quality(df_chunk: pd.DataFrame, chunk_id: int):
-    """Assess data quality for a chunk"""
+    # Assess data quality for a chunk
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(assess_data_quality-{chunk_id}) Processing on node: {node_ip}")
     
@@ -122,7 +122,7 @@ def assess_data_quality(df_chunk: pd.DataFrame, chunk_id: int):
 
 @ray.remote(num_cpus=1, memory=256*1024*1024)
 def transform_data_chunk(df_chunk: pd.DataFrame, chunk_id: int):
-    """Apply transformations to a data chunk"""
+    # Apply transformations to a data chunk
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(transform_data_chunk-{chunk_id}) Processing on node: {node_ip}")
     
@@ -231,7 +231,7 @@ def transform_data_chunk(df_chunk: pd.DataFrame, chunk_id: int):
 
 @ray.remote(num_cpus=1, memory=128*1024*1024)
 def save_data_chunk(df_chunk: pd.DataFrame, output_path: str, chunk_id: int):
-    """Save a data chunk to HDFS"""
+    # Save a data chunk to HDFS
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(save_data_chunk-{chunk_id}) Saving on node: {node_ip}")
     
@@ -268,7 +268,7 @@ def save_data_chunk(df_chunk: pd.DataFrame, output_path: str, chunk_id: int):
 
 
 def extract_data_distributed(hdfs_path: str, config: dict):
-    """Distributed data extraction from HDFS"""
+    # Distributed data extraction from HDFS
     print("=== EXTRACTION PHASE ===")
     print(f"Loading data from HDFS: {hdfs_path}")
     
@@ -310,7 +310,7 @@ def extract_data_distributed(hdfs_path: str, config: dict):
 
 
 def transform_data_distributed(df: pd.DataFrame, config: dict):
-    """Distributed data transformation"""
+    # Distributed data transformation
     print("=== TRANSFORMATION PHASE ===")
     
     if df.empty:
@@ -413,7 +413,7 @@ def transform_data_distributed(df: pd.DataFrame, config: dict):
 
 
 def load_data_distributed(df: pd.DataFrame, config: dict):
-    """Distributed data loading to HDFS"""
+    # Distributed data loading to HDFS
     print("=== LOADING PHASE ===")
     
     if df.empty:
@@ -451,7 +451,7 @@ def load_data_distributed(df: pd.DataFrame, config: dict):
 
 
 def etl_ray(config):
-    """Main ETL pipeline orchestrator"""
+    # Main ETL pipeline orchestrator
     print("Starting Ray ETL Pipeline...")
     
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"

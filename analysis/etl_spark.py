@@ -6,10 +6,7 @@ import numpy as np
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, count, sum as spark_sum, avg, max as spark_max, min as spark_min,
-    when, length, regexp_extract, split, size, desc, asc, round as spark_round,
-    unix_timestamp, from_unixtime, year, month, dayofmonth, hour,
-    collect_list, concat_ws, trim, lower, upper, substring
-)
+    when, desc, round as spark_round)
 from pyspark.sql.types import *
 import resource
 
@@ -60,7 +57,7 @@ Sample Transformation Results:
 
 
 def extract_data(spark, config):
-    """Extract phase: Load data from HDFS with optimizations"""
+    # Distributed data extraction from HDFS
     print("=== EXTRACTION PHASE ===")
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
     
@@ -92,7 +89,7 @@ def extract_data(spark, config):
 
 
 def transform_data(spark, df, config):
-    """Transform phase: Apply various ETL transformations"""
+    # Distributed data transformation
     print("=== TRANSFORMATION PHASE ===")
     
     sample_results = {}
@@ -218,7 +215,7 @@ def transform_data(spark, df, config):
 
 
 def load_data(spark, df_transformed, config):
-    """Load phase: Save results back to HDFS"""
+    # Distributed data loading to HDFS
     print("=== LOADING PHASE ===")
     
     # Create output paths
@@ -242,7 +239,7 @@ def load_data(spark, df_transformed, config):
 
 
 def etl_spark(spark, config):
-    """Main ETL pipeline orchestrator"""
+    # Main ETL pipeline orchestrator
     print("Starting Spark ETL Pipeline...")
     
     # Extraction
@@ -268,7 +265,7 @@ def etl_spark(spark, config):
 
 def main():
     parser = argparse.ArgumentParser(description='ETL Benchmark using Spark')
-    parser.add_argument('-f', '--file', type=str, required=True, help='Input CSV file name')
+    parser.add_argument('-f', '--file', type=str, required=True, help='Input CSV file name in HDFS /data/ directory')
     parser.add_argument('--num-executors', type=int, default=4, help='Number of Spark executors')
     parser.add_argument('--executor-memory', type=str, default='1g', help='Memory per executor')
     parser.add_argument('--partitions', type=int, default=16, help='Number of partitions')
@@ -284,7 +281,7 @@ def main():
     
     # Initialize Spark
     spark = SparkSession.builder \
-        .appName("ETL_Benchmark_Spark") \
+        .appName("ETL_Benchmark") \
         .config("spark.executor.instances", str(config['num_executors'])) \
         .config("spark.executor.memory", config['executor_memory']) \
         .config("spark.executor.cores", "2") \
