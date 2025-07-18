@@ -1,174 +1,89 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
-from graphframes import GraphFrame
-from sparkmeasure import StageMetrics
 import sys
+import os
 import time
 import argparse
-import os
+import resource
+import networkx as nx
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 
-def display_results(config, start_time, end_time, total_triangles, triangle_counts_sample):
+os.environ['PYSPARK_PYTHON'] = sys.executable
+os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
+
+def display_results(config, start_time, end_time, results, total_triangles):
     execution_time = end_time - start_time
-    
+    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     results_text = f"""
 Dataset: {config['file']}
 Total execution time: {execution_time:.2f} seconds
-Number of executors: {config['num_executors']}
+Peak memory usage: {peak_memory:.2f} MB
+Number of chunks: {config['chunks']}
 Total triangles found: {total_triangles}
 
-Sample triangle counts per node:
+Triangle counts per chunk:
 """
-    
-    for row in triangle_counts_sample:
-        results_text += f"Node {row['id']}: {row['count']} triangles\n"
-    
+    for idx, result in enumerate(results):
+        chunk_total = sum(result.values()) if isinstance(result, dict) else result
+        results_text += f"Chunk {idx}: {chunk_total} triangles\n"
     print(results_text)
-    
     timestamp = int(time.time())
     filename = f'counting_triangles_spark_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
     if not os.path.exists('results'):
         os.makedirs('results')
     with open(f'results/{filename}', 'w') as f:
         f.write(results_text)
-    
     print(f"Results saved to results/{filename}")
 
 def main():
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Run triangle counting using Spark')
-    parser.add_argument('-f', '--file', 
-                       required=True,
-                       help='Name of the CSV file in HDFS /data/ directory')
-    parser.add_argument('--num-executors', type=str, default="4",
-                       help='Number of Spark executors (default: 4)')
-    
+    parser = argparse.ArgumentParser(description='Count triangles in a graph using Spark (NetworkX on driver)')
+    parser.add_argument('-f', '--file', type=str, default='data_reddit_100M.csv',
+                        help='Path to the input CSV file')
+    parser.add_argument('-c', '--chunks', type=int, default=4,
+                        help='Number of chunks to split the nodes into')
     args = parser.parse_args()
-    datafile = args.file
-    num_executors = args.num_executors    # Optimized Spark configuration for 2VMs with 4GB RAM each - FORCE proper distribution like Ray
-    spark = SparkSession.builder \
-        .appName("TriangleCounting_Distributed") \
-        .master("yarn") \
-        .config("spark.executor.instances", "4") \
-        .config("spark.executor.cores", "2") \
-        .config("spark.executor.memory", "1200m") \
-        .config("spark.executor.memoryOverhead", "300m") \
-        .config("spark.driver.memory", "800m") \
-        .config("spark.driver.maxResultSize", "400m") \
-        .config("spark.sql.adaptive.enabled", "true") \
-        .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-        .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "32MB") \
-        .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-        .config("spark.sql.shuffle.partitions", "32") \
-        .config("spark.default.parallelism", "32") \
-        .config("spark.dynamicAllocation.enabled", "false") \
-        .config("spark.network.timeout", "600s") \
-        .config("spark.executor.heartbeatInterval", "60s") \
-        .config("spark.locality.wait", "0s") \
-        .config("spark.locality.wait.node", "0s") \
-        .config("spark.locality.wait.rack", "0s") \
-        .config("spark.locality.wait.process", "0s") \
-        .config("spark.scheduler.maxRegisteredResourcesWaitingTime", "30s") \
-        .config("spark.scheduler.minRegisteredResourcesRatio", "1.0") \
-        .config("spark.task.maxAttempts", "1") \
-        .config("spark.stage.maxConsecutiveAttempts", "1") \
-        .config("spark.scheduler.mode", "FAIR") \
-        .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
-        .config("spark.checkpoint.compress", "true") \
-        .config("spark.speculation", "false") \
-        .config("spark.sql.adaptive.skewJoin.enabled", "true") \
-        .config("spark.sql.adaptive.localShuffleReader.enabled", "false") \
-        .config("spark.jars.packages", "ch.cern.sparkmeasure:spark-measure_2.12:0.23,graphframes:graphframes:0.8.4-spark3.5-s_2.12") \
-        .getOrCreate()
-
-    sc = spark.sparkContext
-    stagemetrics = StageMetrics(spark)
-    stagemetrics.begin()
-
-    # Define schema for CSV file (adjust delimiter if needed)
-    schema = StructType([
-        StructField("src", StringType(), True),
-        StructField("dst", StringType(), True)
-    ])    # Load edges from HDFS CSV with aggressive partitioning for large datasets
-    edges_df = spark.read.format("csv") \
-        .option("header", "false") \
-        .option("comment", "#") \
-        .option("delimiter", ",") \
-        .schema(schema) \
-        .load(f"hdfs:///data/{datafile}") \
-        .repartition(32)  # Increase partitions for better distribution
-    
-    # Cache edges as they'll be used multiple times
-    edges_df.cache()
-
-    # Create vertices DataFrame with aggressive partitioning
-    vertices_df = edges_df.select("src").union(edges_df.select("dst")).distinct() \
-        .withColumnRenamed("src", "id") \
-        .repartition(16)  # More partitions for vertices
-    
-    # Cache vertices
-    vertices_df.cache()
-    
-    # Build the graph
-    graph = GraphFrame(vertices_df, edges_df)
-    
-    # Force evaluation to ensure caching is effective and check data distribution
-    vertex_count = vertices_df.count()
-    edge_count = edges_df.count()
-    print(f"Graph loaded - Vertices: {vertex_count}, Edges: {edge_count}")
-    print(f"Vertices partitions: {vertices_df.rdd.getNumPartitions()}")
-    print(f"Edges partitions: {edges_df.rdd.getNumPartitions()}")
-
+    config = {'file': args.file, 'chunks': args.chunks}
+    spark = SparkSession.builder.appName("TriangleCountingSpark").getOrCreate()
     start_time = time.time()
-    
-    # Enable checkpointing for large datasets to avoid recomputation
-    spark.sparkContext.setCheckpointDir("hdfs:///tmp/spark-checkpoint")
-    
-    # Compute triangles with memory-optimized approach
-    triangle_df = graph.triangleCount()
-    
-    # Checkpoint the result to avoid recomputation and enable spilling
-    triangle_df.checkpoint()
-    triangle_df.cache()
-    
-    # Force evaluation of triangle computation
-    triangle_df.count()  # Trigger computation
-    
-    # Collect results in small batches to avoid driver memory issues
-    triangle_counts = triangle_df.select("id", "count").limit(10).collect()
-
-    # Use streaming aggregation for total count to avoid collecting all data
-    total_triangles = triangle_df.agg({"count": "sum"}).collect()[0][0]
-    
+    hdfs_path = f"hdfs://o-master:54310/data/{args.file}"
+    df = spark.read.option("header", "true") \
+        .option("inferSchema", "true") \
+        .option("multiline", "false") \
+        .csv(hdfs_path)
+    # Only keep source and target columns, drop nulls
+    edges = df.select(
+        col("SOURCE_SUBREDDIT").alias("src"),
+        col("TARGET_SUBREDDIT").alias("dst")
+    ).filter(col("src").isNotNull() & col("dst").isNotNull())
+    # Collect edge list to driver
+    edge_list = edges.rdd.map(lambda row: (str(row.src), str(row.dst))).collect()
+    # Build undirected NetworkX graph
+    G = nx.parse_edgelist([f"{u} {v}" for u, v in edge_list], nodetype=str, create_using=nx.DiGraph())
+    G = G.to_undirected()
+    node_list = list(G.nodes())
+    num_chunks = min(args.chunks, 8)
+    min_chunk_size = max(100, len(node_list) // 16)
+    node_chunk_size = max(min_chunk_size, len(node_list) // num_chunks)
+    node_chunks = [
+        node_list[node_chunk_size * i : node_chunk_size * (i + 1)] if i < num_chunks - 1
+        else node_list[node_chunk_size * i :]
+        for i in range(num_chunks)
+    ]
+    node_chunks = [chunk for chunk in node_chunks if len(chunk) > 0]
+    print(f"Processing {len(node_chunks)} chunks with average size: {len(node_list) // len(node_chunks) if node_chunks else 0}")
+    # Count triangles per chunk
+    results = []
+    for chunk in node_chunks:
+        batch_size = min(500, len(chunk))
+        total_triangles = {}
+        for i in range(0, len(chunk), batch_size):
+            batch_nodes = chunk[i:i+batch_size]
+            batch_triangles = nx.triangles(G, nodes=batch_nodes)
+            total_triangles.update(batch_triangles)
+        results.append(total_triangles)
     end_time = time.time()
-
-    # Create config dictionary for display_results
-    config = {
-        'file': datafile,
-        'num_executors': num_executors
-    }
-    
-    # Display and save results
-    display_results(config, start_time, end_time, total_triangles, triangle_counts[:10])
-
-    stagemetrics.end()
-    stagemetrics.print_report()
-    print(stagemetrics.aggregate_stagemetrics())
-
-    # Memory report (may need retries)
-    patience = 20
-    while patience > 0:
-        try:
-            stagemetrics.print_memory_report()
-            break
-        except Exception:
-            print("Memory report not ready yet, waiting...")
-            time.sleep(1)
-            patience -= 1
-    else:
-        print("Memory report never ready :(")
-
-    sc.stop()
-
+    total_triangles = sum([sum(result.values()) if isinstance(result, dict) else result for result in results])
+    display_results(config, start_time, end_time, results, total_triangles)
+    spark.stop()
 
 if __name__ == "__main__":
     main()
