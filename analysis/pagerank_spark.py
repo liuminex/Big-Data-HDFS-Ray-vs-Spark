@@ -129,20 +129,18 @@ def pagerank_spark(spark, config):
         if iteration > 0:
             # Calculate the difference between old and new scores with sampling for large datasets
             sample_fraction = min(1.0, 10000.0 / total_nodes)  # Sample for very large graphs
-            score_diff = current_scores.alias("old").join(new_scores.alias("new"), "node", "inner") \
-                                     .sample(sample_fraction) \
-                                     .withColumn("diff", 
-                                               (col("old.score") - col("new.score")) * 
-                                               (col("old.score") - col("new.score"))) \
-                                     .agg(spark_sum("diff").alias("total_diff")) \
-                                     .collect()[0]["total_diff"]
-            
+            score_diff_row = current_scores.alias("old").join(new_scores.alias("new"), "node", "inner") \
+                                 .sample(sample_fraction) \
+                                 .withColumn("diff", 
+                                           (col("old.score") - col("new.score")) * 
+                                           (col("old.score") - col("new.score"))) \
+                                 .agg(spark_sum("diff").alias("total_diff")) \
+                                 .first()
+            score_diff = score_diff_row["total_diff"] if score_diff_row and score_diff_row["total_diff"] is not None else 0.0
             # Adjust for sampling
             if sample_fraction < 1.0:
                 score_diff = score_diff / sample_fraction
-                
             print(f"  Convergence metric: {score_diff:.8f}")
-            
             if score_diff < convergence_threshold:
                 print(f"Converged after {iteration + 1} iterations")
                 break
@@ -191,13 +189,6 @@ def main():
     # Initialize Spark Session with optimized configuration for 2VMs with 4GB RAM each
     spark = SparkSession.builder \
         .appName("PageRank_Distributed") \
-        .master("yarn") \
-        .config("spark.executor.instances", "4") \
-        .config("spark.executor.cores", "2") \
-        .config("spark.executor.memory", "1200m") \
-        .config("spark.executor.memoryOverhead", "300m") \
-        .config("spark.driver.memory", "800m") \
-        .config("spark.driver.maxResultSize", "400m") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB") \

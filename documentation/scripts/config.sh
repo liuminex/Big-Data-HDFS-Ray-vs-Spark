@@ -2,7 +2,7 @@
 
 HADOOP_LINK="https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz"
 SPARK_LINK="https://dlcdn.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz"
-MAX_MEM="2048" # memory to allocate for yarn (must be less than VM memory)
+MAX_MEM="2867" # memory to allocate for yarn (must be less than VM memory)
 
 
 MASTER_IP="192.168.56.104"

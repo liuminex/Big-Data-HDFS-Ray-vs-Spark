@@ -1,7 +1,5 @@
 import time
 import ray
-import subprocess
-import tempfile
 import os
 import numpy as np
 import pandas as pd
@@ -31,7 +29,7 @@ Top {len(top_nodes)} nodes by PageRank score:
     print(results_text)
     
     timestamp = int(time.time())
-    filename = f'pagerank_spark_results_{config['datafile'].replace('.csv', '')}_{timestamp}.txt'
+    filename = f'pagerank_ray_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
     if not os.path.exists('results'):
         os.makedirs('results')
     with open(f'results/{filename}', 'w') as f:
@@ -40,19 +38,18 @@ Top {len(top_nodes)} nodes by PageRank score:
     print(f"Results saved to results/{filename}")
 
 
-@ray.remote(num_cpus=1, memory=400*1024*1024, scheduling_strategy="SPREAD")
-def build_graph_chunk(data_chunk):
-    # Build graph structure from a chunk of data
+@ray.remote(scheduling_strategy="SPREAD")
+def build_adjacency_chunk(data_chunk):
+    # Build adjacency lists from a chunk of data - keep distributed
     node_ip = ray._private.services.get_node_ip_address()
-    print(f"(build_graph_chunk) Processing chunk on node: {node_ip}")
+    print(f"(build_adjacency_chunk) Processing chunk on node: {node_ip}")
     
-    # Extract edges from the chunk with memory-efficient processing
-    edges = []
-    nodes = set()
+    adjacency = defaultdict(list)
     out_degrees = defaultdict(int)
+    all_nodes = set()
     
-    # Process in reasonable batches
-    batch_size = 2000
+    # Process in small batches to avoid memory issues
+    batch_size = 1000
     for i in range(0, len(data_chunk), batch_size):
         batch = data_chunk.iloc[i:i+batch_size]
         for _, row in batch.iterrows():
@@ -60,42 +57,42 @@ def build_graph_chunk(data_chunk):
                 source = str(row['SOURCE_SUBREDDIT'])
                 target = str(row['TARGET_SUBREDDIT'])
                 
-                edges.append((source, target))
-                nodes.add(source)
-                nodes.add(target)
+                adjacency[source].append(target)
                 out_degrees[source] += 1
+                all_nodes.add(source)
+                all_nodes.add(target)
     
-    return edges, nodes, dict(out_degrees)
+    return dict(adjacency), dict(out_degrees), list(all_nodes)
 
 
-@ray.remote(num_cpus=1, memory=300*1024*1024, scheduling_strategy="SPREAD")
-def pagerank_update_chunk(edges_chunk, current_scores, out_degrees, damping_factor, total_nodes):
-    # Update PageRank scores for a chunk of edges
+@ray.remote(scheduling_strategy="SPREAD")
+def pagerank_iteration_chunk(adjacency_chunk, scores_dict, out_degrees_dict, damping_factor, total_nodes):
+    # Perform one PageRank iteration on a chunk of the adjacency list
     node_ip = ray._private.services.get_node_ip_address()
-    print(f"(pagerank_update_chunk) Processing {len(edges_chunk)} edges on node: {node_ip}")
+    print(f"(pagerank_iteration_chunk) Processing {len(adjacency_chunk)} nodes on node: {node_ip}")
     
-    contributions = defaultdict(float)
+    new_scores = defaultdict(float)
     
-    # Process edges in reasonable batches
-    batch_size = 1000
-    for i in range(0, len(edges_chunk), batch_size):
-        batch = edges_chunk[i:i+batch_size]
-        for source, target in batch:
-            if source in current_scores and source in out_degrees:
-                contribution = current_scores[source] / out_degrees[source]
-                contributions[target] += contribution
+    # Initialize all nodes with base score
+    for source_node, neighbors in adjacency_chunk.items():
+        for target_node in neighbors:
+            if target_node not in new_scores:
+                new_scores[target_node] = (1.0 - damping_factor) / total_nodes
     
-    # Calculate new scores for nodes in this chunk
-    new_scores = {}
-    unique_targets = set(target for _, target in edges_chunk)
-    for node in unique_targets:
-        new_scores[node] = (1.0 - damping_factor) / total_nodes + damping_factor * contributions[node]
+    # Add contributions from source nodes
+    for source_node, neighbors in adjacency_chunk.items():
+        if source_node in out_degrees_dict and out_degrees_dict[source_node] > 0:
+            contribution = scores_dict.get(source_node, 1.0 / total_nodes) / out_degrees_dict[source_node]
+            
+            # Distribute contribution to all neighbors
+            for target_node in neighbors:
+                new_scores[target_node] += damping_factor * contribution
     
-    return new_scores
+    return dict(new_scores)
 
 
-def build_graph_ray(config):
-    # Build graph structure using Ray from local dataset
+def build_distributed_graph(config):
+    # Build distributed adjacency lists using Ray with streaming approach
     data_path = f"../data/{config['datafile']}"
     
     if not os.path.exists(data_path):
@@ -103,15 +100,15 @@ def build_graph_ray(config):
     
     print(f"Reading data from {data_path}...")
     
-    chunk_rows = 20000
-    
-    all_edges = []
+    # Stream data in very small chunks to avoid memory issues
+    chunk_rows = 10000
+    all_adjacency_refs = []
+    all_out_degrees = defaultdict(int)
     all_nodes = set()
-    combined_out_degrees = defaultdict(int)
     
     chunk_count = 0
-    batch_size = 2  # Process 2 chunks at a time maximum
     
+    # Process chunks one by one to avoid loading entire dataset into memory
     for chunk_df in pd.read_csv(data_path, chunksize=chunk_rows):
         if len(chunk_df) == 0:
             continue
@@ -119,83 +116,75 @@ def build_graph_ray(config):
         chunk_count += 1
         print(f"Processing chunk {chunk_count} ({len(chunk_df)} rows)...")
         
-        # Process single chunk
-        future = build_graph_chunk.remote(chunk_df)
-        edges, nodes, out_degrees = ray.get(future)
+        # Process single chunk immediately
+        future = build_adjacency_chunk.remote(chunk_df)
+        adjacency, out_degrees, nodes = ray.get(future)
         
-        # Combine results immediately and clean up
-        all_edges.extend(edges)
-        all_nodes.update(nodes)
+        # Store adjacency as Ray object (keep distributed)
+        if adjacency:  # Only store non-empty adjacency lists
+            adj_ref = ray.put(adjacency)
+            all_adjacency_refs.append(adj_ref)
+        
+        # Combine metadata
         for node, degree in out_degrees.items():
-            combined_out_degrees[node] += degree
+            all_out_degrees[node] += degree
+        all_nodes.update(nodes)
         
-        # Clear variables to free memory
-        del edges, nodes, out_degrees, chunk_df, future
+        # Clear local memory immediately
+        del chunk_df, future, adjacency, out_degrees, nodes
         
-        # Progress update every 10 chunks
-        if chunk_count % 10 == 0:
-            print(f"  Progress: {len(all_nodes)} nodes, {len(all_edges)} edges so far")
+        # Progress update every 50 chunks
+        if chunk_count % 50 == 0:
+            print(f"  Progress: {len(all_nodes)} total nodes, {len(all_adjacency_refs)} adjacency chunks")
             
-        # Force garbage collection every 20 chunks
-        if chunk_count % 20 == 0:
+            # Force garbage collection every 50 chunks
             import gc
             gc.collect()
     
-    # Remove duplicate edges efficiently
-    print("Removing duplicate edges...")
-    unique_edges = list(set(all_edges))
-    del all_edges  # Free memory immediately
-    
     print(f"Graph statistics:")
     print(f"  Total nodes: {len(all_nodes)}")
-    print(f"  Total edges: {len(unique_edges)}")
+    print(f"  Total chunks processed: {chunk_count}")
+    print(f"  Adjacency chunks: {len(all_adjacency_refs)}")
     
-    return unique_edges, all_nodes, dict(combined_out_degrees)
+    return all_adjacency_refs, dict(all_out_degrees), list(all_nodes)
 
 
 def pagerank_ray(config):
     # Distributed PageRank implementation using Ray
-    print("Building graph structure...")
-    edges, nodes, out_degrees = build_graph_ray(config)
+    print("Building distributed graph structure...")
+    adjacency_refs, out_degrees, all_nodes = build_distributed_graph(config)
     
     # Initialize PageRank scores
-    total_nodes = len(nodes)
+    total_nodes = len(all_nodes)
     initial_score = 1.0 / total_nodes
-    current_scores = {node: initial_score for node in nodes}
+    current_scores = {node: initial_score for node in all_nodes}
     
     damping_factor = config["damping_factor"]
     convergence_threshold = config["convergence_threshold"]
     max_iterations = config["max_iterations"]
     
-    # Optimize partitioning for your 2-VM setup (8 total CPU cores)
-    num_partitions = min(8, len(edges) // 5000 + 1)  # Ensure at least 5000 edges per partition
-    edges_per_partition = max(1000, len(edges) // num_partitions)
-    edge_chunks = [edges[i:i + edges_per_partition] 
-                   for i in range(0, len(edges), edges_per_partition)]
-    
-    print(f"Starting PageRank iterations with {num_partitions} partitions...")
-    print(f"Edge chunks: {len(edge_chunks)}, average size: {len(edges) // len(edge_chunks) if edge_chunks else 0}")
+    print(f"Starting PageRank iterations with {len(adjacency_refs)} distributed chunks...")
+    print(f"Total nodes: {total_nodes}")
     
     for iteration in range(max_iterations):
         print(f"Iteration {iteration + 1}/{max_iterations}")
         
-        # Store current scores in Ray object store for efficient access
+        # Store current scores and out_degrees in Ray object store
         current_scores_ref = ray.put(current_scores)
         out_degrees_ref = ray.put(out_degrees)
         
-        # Distribute PageRank computation across chunks with controlled parallelism
-        # Process in smaller batches to avoid overwhelming the cluster
-        batch_size = min(4, len(edge_chunks))  # Process max 4 chunks at a time
+        # Process adjacency chunks in small batches to control memory
+        batch_size = 2  # Process max 2 chunks at a time
         all_chunk_results = []
         
-        for i in range(0, len(edge_chunks), batch_size):
-            batch_chunks = edge_chunks[i:i + batch_size]
-            print(f"  Processing batch {i//batch_size + 1}/{(len(edge_chunks) + batch_size - 1)//batch_size}")
+        for i in range(0, len(adjacency_refs), batch_size):
+            batch_refs = adjacency_refs[i:i + batch_size]
+            print(f"  Processing batch {i//batch_size + 1}/{(len(adjacency_refs) + batch_size - 1)//batch_size}")
             
             futures = [
-                pagerank_update_chunk.remote(
-                    chunk, current_scores_ref, out_degrees_ref, damping_factor, total_nodes
-                ) for chunk in batch_chunks
+                pagerank_iteration_chunk.remote(
+                    adj_ref, current_scores_ref, out_degrees_ref, damping_factor, total_nodes
+                ) for adj_ref in batch_refs
             ]
             
             # Get results for this batch
@@ -203,17 +192,17 @@ def pagerank_ray(config):
             all_chunk_results.extend(batch_results)
         
         # Merge results efficiently
-        new_scores = {node: (1.0 - damping_factor) / total_nodes for node in nodes}
+        new_scores = {node: (1.0 - damping_factor) / total_nodes for node in all_nodes}
         
         for chunk_scores in all_chunk_results:
             for node, score in chunk_scores.items():
                 new_scores[node] = score
         
-        # Check for convergence with sampling for very large graphs
+        # Check for convergence
         if iteration > 0:
             # Sample nodes for convergence check if graph is very large
             sample_size = min(1000, total_nodes)
-            sample_nodes = list(nodes)[:sample_size] if total_nodes > 1000 else nodes
+            sample_nodes = list(all_nodes)[:sample_size] if total_nodes > 1000 else all_nodes
             
             diff = sum((current_scores[node] - new_scores[node]) ** 2 
                       for node in sample_nodes)
@@ -241,15 +230,13 @@ def main():
     parser = argparse.ArgumentParser(description='Run distributed PageRank using Ray')
     parser.add_argument('-f', '--file', 
                        required=True,
-                       help='Name of the CSV file in HDFS /data/ directory')
+                       help='Name of the CSV file in local data/ directory')
     parser.add_argument('--damping-factor', type=float, default=0.85,
                        help='PageRank damping factor (default: 0.85)')
     parser.add_argument('--max-iterations', type=int, default=20,
                        help='Maximum number of iterations (default: 20)')
     parser.add_argument('--convergence-threshold', type=float, default=1e-6,
                        help='Convergence threshold (default: 1e-6)')
-    parser.add_argument('--batch-size', type=int, default=64*1024*1024,
-                       help='Batch size for reading data (default: 64MB)')
     
     args = parser.parse_args()
     
@@ -257,8 +244,7 @@ def main():
         "datafile": args.file,
         "damping_factor": args.damping_factor,
         "max_iterations": args.max_iterations,
-        "convergence_threshold": args.convergence_threshold,
-        "batch_size": args.batch_size
+        "convergence_threshold": args.convergence_threshold
     }
     
     start_time = time.time()
