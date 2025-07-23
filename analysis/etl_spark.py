@@ -26,7 +26,7 @@ Total execution time: {execution_time:.2f} seconds
   - Transformation time: {transformation_time:.2f} seconds
   - Loading time: {loading_time:.2f} seconds
 Peak memory usage: {peak_memory:.2f} MB
-Number of executors: {config.get('num_executors', 'default')}
+Partitions: {config.get('partitions', 'default')}
 
 ETL Pipeline Operations Completed:
 1. Data Extraction from HDFS
@@ -266,25 +266,18 @@ def etl_spark(spark, config):
 def main():
     parser = argparse.ArgumentParser(description='ETL Benchmark using Spark')
     parser.add_argument('-f', '--file', type=str, required=True, help='Input CSV file name in HDFS /data/ directory')
-    parser.add_argument('--num-executors', type=int, default=4, help='Number of Spark executors')
-    parser.add_argument('--executor-memory', type=str, default='1g', help='Memory per executor')
-    parser.add_argument('--partitions', type=int, default=16, help='Number of partitions')
+    parser.add_argument('--partitions', type=int, default=12, help='Number of partitions')
     
     args = parser.parse_args()
     
     config = {
         'datafile': args.file,
-        'num_executors': args.num_executors,
-        'executor_memory': args.executor_memory,
         'partitions': args.partitions
     }
     
-    # Initialize Spark
+    # Initialize Spark with minimal configuration for distributed setup
     spark = SparkSession.builder \
         .appName("ETL_Benchmark") \
-        .config("spark.executor.instances", str(config['num_executors'])) \
-        .config("spark.executor.memory", config['executor_memory']) \
-        .config("spark.executor.cores", "2") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
