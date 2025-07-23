@@ -3,6 +3,3 @@
 **/.tmp
 */.tmp
 */.tmp/
-
-# ignore results for now we will push them later
-results/ 
