@@ -1,0 +1,21 @@
+
+Dataset: data_reddit_5G.csv
+Total execution time: 2796.29 seconds
+Peak memory usage: 158.25 MB
+Number of chunks: 13
+Total triangles found: 22225614277
+
+Triangle counts per chunk:
+Chunk 0: 1855772873 triangles
+Chunk 1: 1850571301 triangles
+Chunk 2: 1848214949 triangles
+Chunk 3: 1850441358 triangles
+Chunk 4: 1850065925 triangles
+Chunk 5: 1852099170 triangles
+Chunk 6: 1850318878 triangles
+Chunk 7: 1854839069 triangles
+Chunk 8: 1855063030 triangles
+Chunk 9: 1850630158 triangles
+Chunk 10: 1853495323 triangles
+Chunk 11: 1854082798 triangles
+Chunk 12: 19445 triangles

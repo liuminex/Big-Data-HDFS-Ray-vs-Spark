@@ -5,7 +5,7 @@ import argparse
 import resource
 import networkx as nx
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, collect_list
 
 os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
@@ -17,17 +17,11 @@ def display_results(config, start_time, end_time, results, total_triangles):
 Dataset: {config['file']}
 Total execution time: {execution_time:.2f} seconds
 Peak memory usage: {peak_memory:.2f} MB
-Number of chunks: {config['chunks']}
 Total triangles found: {total_triangles}
-
-Triangle counts per chunk:
 """
-    for idx, result in enumerate(results):
-        chunk_total = sum(result.values()) if isinstance(result, dict) else result
-        results_text += f"Chunk {idx}: {chunk_total} triangles\n"
     print(results_text)
     timestamp = int(time.time())
-    filename = f'counting_triangles_spark_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
+    filename = f'triangles_spark_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
     if not os.path.exists('results'):
         os.makedirs('results')
     with open(f'results/{filename}', 'w') as f:
@@ -35,13 +29,14 @@ Triangle counts per chunk:
     print(f"Results saved to results/{filename}")
 
 def main():
+    # Parse command line arguments
     parser = argparse.ArgumentParser(description='Count triangles in a graph using Spark (NetworkX on driver)')
     parser.add_argument('-f', '--file', type=str, default='data_reddit_100M.csv',
                         help='Path to the input CSV file')
-    parser.add_argument('-c', '--chunks', type=int, default=4,
-                        help='Number of chunks to split the nodes into')
     args = parser.parse_args()
-    config = {'file': args.file, 'chunks': args.chunks}
+    config = {'file': args.file}
+
+    # Initialize Spark session
     spark = SparkSession.builder.appName("TriangleCountingSpark").getOrCreate()
     start_time = time.time()
     hdfs_path = f"hdfs://o-master:54310/data/{args.file}"
@@ -49,39 +44,42 @@ def main():
         .option("inferSchema", "true") \
         .option("multiline", "false") \
         .csv(hdfs_path)
+    
     # Only keep source and target columns, drop nulls
     edges = df.select(
         col("SOURCE_SUBREDDIT").alias("src"),
         col("TARGET_SUBREDDIT").alias("dst")
-    ).filter(col("src").isNotNull() & col("dst").isNotNull())
-    # Collect edge list to driver
-    edge_list = edges.rdd.map(lambda row: (str(row.src), str(row.dst))).collect()
-    # Build undirected NetworkX graph
-    G = nx.parse_edgelist([f"{u} {v}" for u, v in edge_list], nodetype=str, create_using=nx.DiGraph())
-    G = G.to_undirected()
-    node_list = list(G.nodes())
-    num_chunks = min(args.chunks, 8)
-    min_chunk_size = max(100, len(node_list) // 16)
-    node_chunk_size = max(min_chunk_size, len(node_list) // num_chunks)
-    node_chunks = [
-        node_list[node_chunk_size * i : node_chunk_size * (i + 1)] if i < num_chunks - 1
-        else node_list[node_chunk_size * i :]
-        for i in range(num_chunks)
-    ]
-    node_chunks = [chunk for chunk in node_chunks if len(chunk) > 0]
-    print(f"Processing {len(node_chunks)} chunks with average size: {len(node_list) // len(node_chunks) if node_chunks else 0}")
-    # Count triangles per chunk
-    results = []
-    for chunk in node_chunks:
-        batch_size = min(500, len(chunk))
-        total_triangles = {}
-        for i in range(0, len(chunk), batch_size):
-            batch_nodes = chunk[i:i+batch_size]
-            batch_triangles = nx.triangles(G, nodes=batch_nodes)
-            total_triangles.update(batch_triangles)
-        results.append(total_triangles)
+    ).filter(col("src").isNotNull() & col("dst").isNotNull())    # Use distributed triangle counting algorithm
+    
+    # Step 1: Create adjacency lists distributed across cluster
+    adjacency = edges.groupBy("src").agg(
+        collect_list("dst").alias("neighbors")
+    ).rdd.map(lambda row: (row.src, set(row.neighbors)))
+    
+    # Step 2: Broadcast adjacency for efficient lookups
+    adjacency_broadcast = spark.sparkContext.broadcast(dict(adjacency.collect()))
+    
+    # Step 3: Distribute triangle counting across edges
+    def count_triangles_for_edge(edge):
+        src, dst = edge
+        adj_dict = adjacency_broadcast.value
+        
+        # Get neighbors of both nodes
+        src_neighbors = adj_dict.get(src, set())
+        dst_neighbors = adj_dict.get(dst, set())
+        
+        # Find common neighbors (triangles)
+        common_neighbors = src_neighbors.intersection(dst_neighbors)
+        return len(common_neighbors)
+    
+    # Step 4: Count triangles in parallel
+    edge_rdd = edges.rdd.map(lambda row: (str(row.src), str(row.dst)))
+    triangle_counts = edge_rdd.map(count_triangles_for_edge)
+    total_triangles = triangle_counts.sum()
+    
+    # Create results in expected format
+    results = [{"distributed_count": total_triangles}]
     end_time = time.time()
-    total_triangles = sum([sum(result.values()) if isinstance(result, dict) else result for result in results])
     display_results(config, start_time, end_time, results, total_triangles)
     spark.stop()
 

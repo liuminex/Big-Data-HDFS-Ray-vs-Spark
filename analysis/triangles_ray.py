@@ -1,12 +1,11 @@
-from memory_profiler import memory_usage
-import networkx as nx
-import subprocess
-import time
 import sys
-import ray
-import argparse
 import os
+import time
+import argparse
 import resource
+import pandas as pd
+import ray
+from collections import defaultdict
 
 def display_results(config, start_time, end_time, results, total_triangles):
     execution_time = end_time - start_time
@@ -29,7 +28,7 @@ Triangle counts per chunk:
     print(results_text)
     
     timestamp = int(time.time())
-    filename = f'counting_triangles_ray_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
+    filename = f'triangles_ray_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
     if not os.path.exists('results'):
         os.makedirs('results')
     with open(f'results/{filename}', 'w') as f:
@@ -46,121 +45,220 @@ def main():
                         help='Number of chunks to split the nodes into')
     args = parser.parse_args()
 
-    # Load from local file
-    lines = []
-    skip_headers = True
-
-    with open(f'../data/{args.file}', 'r') as file:
-        for raw_line in file:
-            line = raw_line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if skip_headers:
-                skip_headers = False
-                continue
-            parts = line.split(",")
-            if len(parts) < 2:
-                continue
-            lines.append(f"{parts[0]} {parts[1]}")
-
-    G = nx.parse_edgelist(lines, nodetype=str, create_using=nx.DiGraph())
-    G = G.to_undirected()
-
-    num_chunks = min(args.chunks, 8)
-    
-    node_list = list(G.nodes())
-    # Ensure chunks are large enough to be worthwhile but not too large for memory
-    min_chunk_size = max(100, len(node_list) // 16)  # At least 100 nodes per chunk
-    node_chunk_size = max(min_chunk_size, len(node_list) // num_chunks)
-
-    node_chunks = [
-        node_list[node_chunk_size * i : node_chunk_size * (i + 1)] if i < num_chunks - 1
-        else node_list[node_chunk_size * i :]
-        for i in range(num_chunks)
-    ]
-    
-    # Filter out empty chunks
-    node_chunks = [chunk for chunk in node_chunks if len(chunk) > 0]
-    
-    print(f"Processing {len(node_chunks)} chunks with average size: {len(node_list) // len(node_chunks) if node_chunks else 0}")
-
-    # Initialize Ray - connect to existing cluster
+    # Initialize Ray first - connect to existing cluster
     ray.init(address='auto')
     
     # Print cluster information
     print(f"Ray cluster nodes: {len(ray.nodes())}")
     print(f"Ray cluster resources: {ray.cluster_resources()}")
     for node in ray.nodes():
-        print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")    
-    @ray.remote(num_cpus=1, memory=400*1024*1024, scheduling_strategy="SPREAD") 
-    def compute_triangles(G, nodes):
-        # Show which node is processing this chunk
-        node_ip = ray._private.services.get_node_ip_address()
-        print(f"Computing triangles on node: {node_ip} for {len(nodes)} nodes")
-        
-        # Process nodes in reasonable batches
-        batch_size = min(500, len(nodes))
-        total_triangles = {}
-        
-        for i in range(0, len(nodes), batch_size):
-            batch_nodes = nodes[i:i+batch_size]
-            batch_triangles = nx.triangles(G, nodes=batch_nodes)
-            total_triangles.update(batch_triangles)
-            
-            # Clear intermediate data
-            del batch_triangles
-        
-        return total_triangles
+        print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")
 
-    A = time.time()
+    # Count total rows first without loading all data
+    print(f"Analyzing file ../data/{args.file} to determine chunking strategy...")
+    total_rows = 0
+    with open(f'../data/{args.file}', 'r') as file:
+        next(file)  # Skip header
+        for line in file:
+            total_rows += 1
+            if total_rows % 1000000 == 0:
+                print(f"  Counted {total_rows} rows so far...")
     
-    # Store graph in Ray object store for efficient sharing
-    G_ref = ray.put(G)
+    print(f"Total rows in dataset: {total_rows}")
+    
+    # Calculate optimal chunking - more cores per task for better memory distribution
+    total_cores = int(ray.cluster_resources().get('CPU', 12))
+    rows_per_chunk = max(50000, total_rows // total_cores)  # Each chunk gets multiple cores
+    estimated_chunks = max(1, total_rows // rows_per_chunk)
+    
+    print(f"Will process ~{estimated_chunks} chunks with ~{rows_per_chunk} rows each")
+    print(f"Using {total_cores} total cores across cluster")
 
-    # Submit tasks in controlled batches to avoid overwhelming the cluster
-    print(f"Submitting {len(node_chunks)} tasks to Ray cluster...")
-    batch_size = min(4, len(node_chunks))  # Process max 4 chunks at a time
+    @ray.remote(num_cpus=2, scheduling_strategy="SPREAD")
+    def process_file_chunk(file_path, start_row, chunk_size):
+       
+        try:
+            node_ip = ray._private.services.get_node_ip_address()
+            print(f"Processing rows {start_row}-{start_row + chunk_size} on node: {node_ip}")
+        except:
+            print(f"Processing rows {start_row}-{start_row + chunk_size}")
+        
+        home_dir = os.path.expanduser('~')
+        tmp = f'{home_dir}/project/data/{os.path.basename(file_path)}'
+        file_path = tmp
+        
+        adjacency = defaultdict(set)
+        edge_count = 0
+        
+        try:
+            with open(file_path, 'r') as file:
+                next(file)  # Skip header
+                
+                # Read ALL edges to build complete adjacency
+                for line in file:
+                    parts = line.strip().split(',')
+                    if len(parts) >= 2:
+                        src, dst = str(parts[0]), str(parts[1])
+                        if src != dst:  # Skip self-loops
+                            adjacency[src].add(dst)
+                            edge_count += 1
+        except Exception as e:
+            print(f"Error reading complete file {file_path}: {e}")
+            return 0, 0
+            
+        print(f"  Worker built complete adjacency: {len(adjacency)} nodes from {edge_count} total edges")
+        
+        # Now process only THIS chunk's edges for triangle counting
+        edge_list = []
+        try:
+            with open(file_path, 'r') as file:
+                next(file)  # Skip header
+                
+                # Skip to start_row
+                for _ in range(start_row):
+                    try:
+                        next(file)
+                    except StopIteration:
+                        print(f"Reached end of file while skipping to start_row {start_row}")
+                        return 0, 0
+                
+                # Collect only THIS chunk's edges
+                for _ in range(chunk_size):
+                    try:
+                        line = next(file).strip()
+                        parts = line.split(',')
+                        if len(parts) >= 2:
+                            src, dst = str(parts[0]), str(parts[1])
+                            if src != dst:  # Skip self-loops
+                                edge_list.append((src, dst))
+                    except StopIteration:
+                        break
+        except Exception as e:
+            print(f"Error reading chunk {file_path}: {e}")
+            return 0, 0
+        
+        print(f"  Worker processing {len(edge_list)} edges from chunk {start_row}-{start_row + len(edge_list)}")
+        
+        # Count triangles using adjacency but only THIS chunk's edges
+        total_triangles = 0
+        processed = 0
+        
+        for src, dst in edge_list:
+            # Get neighbors from adjacency
+            src_neighbors = adjacency.get(src, set())
+            dst_neighbors = adjacency.get(dst, set())
+            
+            # Find common neighbors (triangles)
+            if src_neighbors and dst_neighbors:
+                common_neighbors = len(src_neighbors & dst_neighbors)
+                total_triangles += common_neighbors
+            
+            processed += 1
+            if processed % 10000 == 0:
+                print(f"    Processed {processed}/{len(edge_list)} edges on this worker")
+        
+        return total_triangles, len(edge_list)
+
+    start_time = time.time()
+    
+
+    home_dir = os.path.expanduser('~')
+    file_path = f'{home_dir}/project/data/{args.file}'
+    print(f"Using file path: {file_path}")
+    
+    # Verify file exists on master
+    if not os.path.exists(file_path):
+        print(f"ERROR: File {file_path} not found on master node!")
+        # Try the relative path as fallback
+        fallback_path = os.path.abspath(f'../data/{args.file}')
+        if os.path.exists(fallback_path):
+            file_path = fallback_path
+            print(f"Using fallback path: {file_path}")
+        else:
+            print(f"File not found in either location!")
+            ray.shutdown()
+            return
+
+    # Submit tasks that process file chunks directly - no master memory loading!
+    print(f"Submitting file processing tasks directly to workers...")
+    futures = []
+    chunk_info = []
+    
+    current_row = 0
+    chunk_id = 0
+    
+    while current_row < total_rows:
+        chunk_size = min(rows_per_chunk, total_rows - current_row)
+        
+        future = process_file_chunk.remote(file_path, current_row, chunk_size)
+        futures.append(future)
+        chunk_info.append((current_row, chunk_size))
+        
+        print(f"  Submitted chunk {chunk_id + 1}: rows {current_row}-{current_row + chunk_size}")
+        
+        current_row += chunk_size
+        chunk_id += 1
+        
+        # Process in small batches to avoid overwhelming
+        if len(futures) >= 6 or current_row >= total_rows:  # 6 tasks = 3 nodes * 2 tasks
+            print(f"  Processing batch of {len(futures)} tasks...")
+            batch_results = ray.get(futures)
+            
+            # Process results
+            for result in batch_results:
+                triangles, edges = result
+                print(f"    Chunk completed: {triangles} triangles from {edges} edges")
+            
+            # Clear batch
+            futures = []
+    
+    print("All file chunks processed successfully!")
+    
+
+    print(f"Collecting final results...")
+    all_futures = []
     all_results = []
     
-    for i in range(0, len(node_chunks), batch_size):
-        batch_chunks = node_chunks[i:i + batch_size]
-        print(f"Processing batch {i//batch_size + 1}/{(len(node_chunks) + batch_size - 1)//batch_size}")
-        
-        # Submit batch of tasks
-        futures = []
-        for j, chunk in enumerate(batch_chunks):
-            future = compute_triangles.remote(G_ref, chunk)
-            futures.append(future)
-            print(f"  Submitted task {i + j + 1}/{len(node_chunks)}")
-        
-        # Wait for batch to complete before submitting next batch
-        batch_results = ray.get(futures)
-        all_results.extend(batch_results)
-        
-        # Clear futures to free memory
-        del futures
-        del batch_results
+    current_row = 0
+    chunk_id = 0
     
-    print("All tasks completed!")
-    results = all_results
-
+    while current_row < total_rows:
+        chunk_size = min(rows_per_chunk, total_rows - current_row)
+        
+        future = process_file_chunk.remote(file_path, current_row, chunk_size)
+        all_futures.append(future)
+        
+        current_row += chunk_size
+        chunk_id += 1
+        
+        # Process in batches of 6
+        if len(all_futures) >= 6 or current_row >= total_rows:
+            batch_results = ray.get(all_futures)
+            all_results.extend(batch_results)
+            all_futures = []
+    
     end_time = time.time()
     
+    # Extract triangle counts and calculate total
+    triangle_counts = [result[0] for result in all_results]
+    total_edges_processed = sum(result[1] for result in all_results)
+    
     # Calculate total triangles
-    total_triangles = sum([sum(result.values()) if isinstance(result, dict) else result for result in results])
+    total_triangles = sum(triangle_counts)
+    
+    print(f"Processed {total_edges_processed} total edges")
+    print(f"Found {total_triangles} triangles")
     
     # Create config dictionary for display_results
     config = {
         'file': args.file,
-        'chunks': args.chunks
+        'chunks': len(all_results)
     }
     
     # Display and save results
-    display_results(config, A, end_time, results, total_triangles)
+    display_results(config, start_time, end_time, triangle_counts, total_triangles)
     
     ray.shutdown()
 
-# Run main with peak memory measurement
 if __name__ == "__main__":
-    mem_usage = memory_usage(main, interval=0.1, max_usage=True)
-    print(f"Peak memory usage: {mem_usage} MB")
+    main()
