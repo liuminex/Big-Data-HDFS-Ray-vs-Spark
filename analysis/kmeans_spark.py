@@ -150,16 +150,9 @@ def main():
     
     start_time = time.time()
     
-    # Initialize Spark Session with optimized configuration for 2VMs with 4GB RAM each
+    # Initialize Spark Session with minimal configuration for distributed setup
     spark = SparkSession.builder \
         .appName("KMeans_Distributed") \
-        .master("yarn") \
-        .config("spark.executor.instances", "4") \
-        .config("spark.executor.cores", "2") \
-        .config("spark.executor.memory", "1200m") \
-        .config("spark.executor.memoryOverhead", "300m") \
-        .config("spark.driver.memory", "800m") \
-        .config("spark.driver.maxResultSize", "400m") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "64MB") \
