@@ -1,0 +1,60 @@
+
+=== ETL RAY BENCHMARK RESULTS ===
+Dataset: data_reddit_1G.csv
+Total execution time: 50.20 seconds
+  - Extraction time: 15.06 seconds
+  - Transformation time: 35.14 seconds
+  - Loading time: 0.00 seconds
+Peak memory usage (driver): 230.49 MB
+Chunks processed: 266
+
+ETL Pipeline Operations Completed:
+1. Data Extraction from Local Filesystem (chunked)
+2. Data Quality Assessment
+3. Text Processing and Feature Engineering
+4. Sentiment Analysis Aggregations
+5. Time-based Aggregations
+6. Complex Joins and Window Functions
+7. Data Validation and Cleansing
+8. Results Export
+
+Sample Transformation Results:
+Data Quality Stats:
+
+    Total rows: 28080
+    Null FracSpecialChars: 0
+    Null NumWords: 0
+    Invalid sentiment values: 0
+    Avg words per post: 325.61
+    Max words: 7358.0
+    Min words: 9.0
+    
+
+Sentiment Category Analysis:
+  positive: 16731 posts, avg_compound=0.785, avg_words=330.1
+  negative: 6856 posts, avg_compound=-0.694, avg_words=316.7
+  neutral: 4493 posts, avg_compound=0.001, avg_words=322.7
+
+Readability Analysis:
+  college/long: 20330 posts, ARI=24.59, sentiment=0.298
+  college/medium: 6202 posts, ARI=24.51, sentiment=0.294
+  high_school/long: 1137 posts, ARI=10.80, sentiment=0.325
+  high_school/medium: 348 posts, ARI=10.81, sentiment=0.306
+  middle_school/long: 31 posts, ARI=7.37, sentiment=0.392
+  college/short: 20 posts, ARI=25.52, sentiment=0.323
+  middle_school/medium: 12 posts, ARI=7.17, sentiment=0.061
+
+Data Cleansing:
+Removed 0 invalid rows (0.00%)
+
+Final Metrics:
+
+    Final dataset size: 28080 rows
+    Average engagement score: 0.492
+    Average complexity score: 65.599
+    Average quality score: 1.706
+    Max engagement: 33.011
+    Max complexity: 14351.399
+    Max quality: 202.336
+    
+

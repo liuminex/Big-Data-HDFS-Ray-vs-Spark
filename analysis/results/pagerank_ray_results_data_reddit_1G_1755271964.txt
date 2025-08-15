@@ -1,0 +1,19 @@
+
+Dataset: data_reddit_1G.csv
+Total execution time: 93.65 seconds
+Peak memory usage: 345.43 MB
+Convergence iterations: 2
+Damping factor: 0.85
+Convergence threshold: 1e-06
+
+Top 10 nodes by PageRank score:
+1. askreddit: 0.000043
+2. worldnews: 0.000021
+3. writingprompts: 0.000018
+4. videos: 0.000017
+5. todayilearned: 0.000017
+6. news: 0.000016
+7. pics: 0.000016
+8. funny: 0.000014
+9. bitcoin: 0.000013
+10. iama: 0.000013
