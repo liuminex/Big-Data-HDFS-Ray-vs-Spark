@@ -162,13 +162,14 @@ def process_etl_chunk(chunk_df, chunk_id):
     
     return chunk_results
 
-@ray.remote(scheduling_strategy="SPREAD")
 def load_and_process_data(config):
     """Load and process data in chunks using Ray with controlled memory usage."""
-    data_path = f"../data/{config['datafile']}"
-    
+    home_dir = os.path.expanduser("~")
+    data_path = f"{home_dir}/project/data/{config['datafile']}"
     if not os.path.exists(data_path):
-        raise Exception(f"Data file not found: {data_path}")
+        data_path = f"../data/{config['datafile']}"
+        if not os.path.exists(data_path):
+            raise FileNotFoundError(f"Data file not found: {config['datafile']}")
     
     print(f"Reading data from {data_path}...")
     
