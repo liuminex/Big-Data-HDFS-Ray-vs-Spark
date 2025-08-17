@@ -1,288 +1,671 @@
 \documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
-% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{float}
+
+
+
+\graphicspath{{src/}}
+
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
 
-\title{Conference Paper Title*\\
-{\footnotesize \textsuperscript{*}Note: Sub-titles are not captured in Xplore and
-should not be used}
-\thanks{Identify applicable funding agency here. If none, delete this.}
-}
+\title{A Comparative Study of Apache Spark and Ray for
+Scalable Big Data Analytics and Machine Learning in Python}
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{2\textsuperscript{nd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{3\textsuperscript{rd} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{4\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{5\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
-\and
-\IEEEauthorblockN{6\textsuperscript{th} Given Name Surname}
-\IEEEauthorblockA{\textit{dept. name of organization (of Aff.)} \\
-\textit{name of organization (of Aff.)}\\
-City, Country \\
-email address or ORCID}
+\author{
+    
+  \IEEEauthorblockN{Kolydakis Manos}
+  \IEEEauthorblockA{\textit{Electrical \& Computer Engineering} \\
+  \textit{National Technical University of Athens}\\
+  Athens, Greece \\
+  01320156}
+  \and
+  \IEEEauthorblockN{Kouriannidis Iasonas}
+  \IEEEauthorblockA{\textit{Electrical \& Computer Engineering} \\
+  \textit{National Technical University of Athens}\\
+  Athens, Greece \\
+  03120439}
+
 }
 
 \maketitle
 
 \begin{abstract}
-This document is a model and instructions for \LaTeX.
-This and the IEEEtran.cls file define the components of your paper [title, text, heads, etc.]. *CRITICAL: Do Not Use Symbols, Special Characters, Footnotes, 
-or Math in Paper Title or Abstract.
+As data-intensive applications become more prevalent, the need for
+efficient and scalable big data processing frameworks has never been greater.
+This work presents a comparative analysis of two prominent distributed systems - Apache Spark and
+Ray - focusing on their performance in executing Extract, Transform, Load (ETL) processes and
+handling a range of machine learning workloads, from basic algorithms to more sophisticated
+AI models. To conduct our evaluation, we leverage datasets of varying sizes, sourced and
+synthetically generated, which are stored in a Hadoop Distributed File System (HDFS) deployed
+across a two-node cluster. We assess both frameworks based on critical criteria such as
+execution efficiency, scalability under load, and resilience to varying resource constraints.
+The results reveal distinct advantages for each platform: Apache Spark demonstrates strong
+proficiency in large-scale ETL operations, while Ray stands out in distributed machine
+learning tasks, offering tight integration with modern ML tools through Ray Datasets.
+Together, they represent complementary strengths in the evolving landscape of
+big data processing.
 \end{abstract}
 
 \begin{IEEEkeywords}
-component, formatting, style, styling, insert
+Big Data, Apache Spark, Ray, Distributed Computing, Machine Learning, Scalability,
+Python Frameworks, ETL, Benchmarking
 \end{IEEEkeywords}
 
 \section{Introduction}
-This document is a model and instructions for \LaTeX.
-Please observe the conference page limits. 
+In the era of big data, organizations and researchers alike face the ongoing challenge of
+processing, analyzing, and drawing insights from vast and continuously growing datasets.
+To address this, distributed computing frameworks have emerged as essential tools for
+enabling scalable and efficient data processing across clusters of machines. Among the
+most widely adopted frameworks is Apache Spark, known for its robust support for batch
+processing, in-memory computation, and rich ecosystem for Extract, Transform, Load (ETL)
+operations. More recently, Ray has gained attention for its flexible and scalable
+architecture tailored toward distributed machine learning (ML) and reinforcement
+learning workloads.
 
-\section{Ease of Use}
+\subsection{HDFS and Hadoop}
+Hadoop is an open-source framework designed to store and process large-scale data sets across
+distributed computing environments. At the core of Hadoop is the Hadoop Distributed File
+System (HDFS), which is a scalable, fault-tolerant file system that runs on commodity hardware and
+manages the storage of massive amounts of data. HDFS enables a single Hadoop cluster to scale
+from a handful of nodes to thousands, making it ideal for handling big data applications.
+The system is designed to provide high throughput access to data by distributing files into large
+blocks and replicating them across multiple nodes to ensure fault tolerance and data reliability.
+HDFS follows a master-slave architecture, where the NameNode manages the file system namespace
+and metadata, while multiple DataNodes handle the storage and retrieval of data blocks.
+This design supports parallel data processing by locating computation tasks close to where data
+resides, reducing network congestion and improving performance. Hadoop and HDFS together
+facilitate efficient batch processing, complex data analytics, and support a variety of
+applications, from data lakes to AI and machine learning workflows. Their portability across
+hardware platforms and compatibility with multiple programming languages make Hadoop and
+HDFS widely adopted solutions for organizations managing vast,
+diverse data sets \cite{hdfs}.
 
-\subsection{Maintaining the Integrity of the Specifications}
+\subsection{Ray}
+Ray is an open-source unified framework designed to scale AI and Python applications,
+particularly in machine learning, without requiring expertise in distributed systems.
+It provides a compute layer that simplifies parallel processing and manages complex workflows
+such as data preprocessing, distributed training, hyperparameter tuning, reinforcement learning,
+and model serving. Ray offers Pythonic primitives for scaling Python applications and integrates
+smoothly with popular cloud platforms and cluster managers like Kubernetes, AWS, GCP, and
+Azure. Its architecture includes Ray Core for general-purpose distributed computing, Ray AI
+Libraries tailored for specific ML tasks, and Ray Clusters that can autoscale based on
+workload demands. Ray enables data scientists and ML engineers to seamlessly scale workloads
+from a laptop to large clusters using the same Python code, reducing the gap between development
+and production. Additionally, it handles essential distributed system tasks like orchestration,
+scheduling, fault tolerance, and auto-scaling automatically, making it a powerful tool for
+building and deploying scalable machine learning applications \cite{ray}.
 
-The IEEEtran class file is used to format your paper and style the text. All margins, 
-column widths, line spaces, and text fonts are prescribed; please do not 
-alter them. You may note peculiarities. For example, the head margin
-measures proportionately more than is customary. This measurement 
-and others are deliberate, using specifications that anticipate your paper 
-as one part of the entire proceedings, and not as an independent document. 
-Please do not revise any of the current designations.
+\subsection{Apache Spark}
+Apache Spark is an open-source distributed processing system designed for big data workloads,
+known for its fast analytic queries enabled by in-memory caching and optimized query execution.
+Supporting APIs in Java, Scala, Python, and R, Spark facilitates multiple workloads including
+batch processing, interactive queries, real-time analytics, machine learning, and graph
+processing. Originally developed in 2009 at UC Berkeley’s AMPLab, Spark aimed to overcome
+limitations of Hadoop MapReduce by reducing job steps and reusing data in-memory, making it
+significantly faster, especially for iterative tasks like machine learning. Unlike Hadoop,
+Spark does not have its own storage but works with systems like HDFS, Amazon S3, and others,
+often running on Hadoop clusters using YARN for resource management. Spark’s ecosystem
+includes core components like Spark SQL for fast queries, Spark Streaming for real-time
+data processing, MLlib for scalable machine learning, and GraphX for graph computations.
+Its cloud deployment is simplified through Amazon EMR, enabling quick cluster setup, auto-scaling,
+and cost savings, making Spark a popular choice across industries for scalable and efficient
+big data analytics \cite{spark}.
 
-\section{Prepare Your Paper Before Styling}
-Before you begin to format your paper, first write and save the content as a 
-separate text file. Complete all content and organizational editing before 
-formatting. Please note sections \ref{AA}--\ref{SCM} below for more information on 
-proofreading, spelling and grammar.
+\section{Experimental Setup}
 
-Keep your text and graphic files separate until after the text has been 
-formatted and styled. Do not number text heads---{\LaTeX} will do that 
-for you.
+\subsection{Hardware and OS}
+For the experiments, we used a distributed cluster of local virtual machines.
+The cluster consisted of three VMs, each with Ubuntu Server 22.04 LTS, 4 CPUs,
+4 GB of RAM, and 50 GB of disk space.
 
-\subsection{Abbreviations and Acronyms}\label{AA}
-Define abbreviations and acronyms the first time they are used in the text, 
-even after they have been defined in the abstract. Abbreviations such as 
-IEEE, SI, MKS, CGS, ac, dc, and rms do not have to be defined. Do not use 
-abbreviations in the title or heads unless they are unavoidable.
+\subsection{Hadoop}
+The Hadoop configuration focused on key parameters to optimize cluster operation.
+We defined dfs.replication as 1, indicating a single copy of each data block for simplicity.
+The yarn.resourcemanager.hostname was set to o-master to identify the resource manager,
+and the web application address used the master's IP on port 8088 for monitoring.
+Memory allocation parameters such as yarn.nodemanager.resource.memory-mb and
+yarn.scheduler.maximum-allocation-mb were configured to use 2GB at maximum.
+Additionally, auxiliary services like mapreduce\_shuffle and
+spark\_shuffle were enabled to facilitate shuffle operations for MapReduce and
+Spark within YARN.
 
-\subsection{Units}
-\begin{itemize}
-\item Use either SI (MKS) or CGS as primary units. (SI units are encouraged.) English units may be used as secondary units (in parentheses). An exception would be the use of English units as identifiers in trade, such as ``3.5-inch disk drive''.
-\item Avoid combining SI and CGS units, such as current in amperes and magnetic field in oersteds. This often leads to confusion because equations do not balance dimensionally. If you must use mixed units, clearly state the units for each quantity that you use in an equation.
-\item Do not mix complete spellings and abbreviations of units: ``Wb/m\textsuperscript{2}'' or ``webers per square meter'', not ``webers/m\textsuperscript{2}''. Spell out units when they appear in text: ``. . . a few henries'', not ``. . . a few H''.
-\item Use a zero before decimal points: ``0.25'', not ``.25''. Use ``cm\textsuperscript{3}'', not ``cc''.)
-\end{itemize}
+\subsection{Ray}
+The Ray cluster was configured to align resource settings with those
+used in the Spark environment for a fair comparison. Each node was
+allocated 4 CPU cores, mirroring Spark’s configuration. The Ray object store
+memory was set to approximately 1.2GB to match the Spark executor memory
+allocation.
 
-\subsection{Equations}
-Number equations consecutively. To make your 
-equations more compact, you may use the solidus (~/~), the exp function, or 
-appropriate exponents. Italicize Roman symbols for quantities and variables, 
-but not Greek symbols. Use a long dash rather than a hyphen for a minus 
-sign. Punctuate equations with commas or periods when they are part of a 
-sentence, as in:
-\begin{equation}
-a+b=\gamma\label{eq}
-\end{equation}
+\subsection{Spark}
+The Spark configuration was set up to integrate with the Hadoop YARN
+cluster as the resource manager. Spark event logging was enabled, with
+logs stored in HDFS under the directory /spark.eventLog on the master node to
+support job history and monitoring. The Spark master was configured to
+run in YARN client mode, allowing dynamic resource allocation and management
+through YARN. Memory allocations were set to 1 GB each for the Spark
+driver and executors, with a single CPU core allocated per executor,
+balancing resource usage across the cluster. The Spark History Server was
+started to provide a web interface for monitoring completed Spark applications.
 
-Be sure that the 
-symbols in your equation have been defined before or immediately following 
-the equation. Use ``\eqref{eq}'', not ``Eq.~\eqref{eq}'' or ``equation \eqref{eq}'', except at 
-the beginning of a sentence: ``Equation \eqref{eq} is . . .''
 
-\subsection{\LaTeX-Specific Advice}
+\section{Datasets}
 
-Please use ``soft'' (e.g., \verb|\eqref{Eq}|) cross references instead
-of ``hard'' references (e.g., \verb|(1)|). That will make it possible
-to combine sections, add equations, or change the order of figures or
-citations without having to go through the file line by line.
+\subsection{Data Discovery}
+The primary dataset utilized in this project is the Reddit Hyperlinks dataset \cite{kumar2018community},
+obtained from the Stanford SNAP repository \cite{reddit_snap}. This dataset contains records of
+subreddit interactions captured in a tab-separated values (TSV) format,
+detailing hyperlinks shared between subreddits along with various metadata and
+sentiment features. To facilitate processing, the original TSV data was
+converted into CSV format, ensuring compatibility with the data ingestion
+pipelines used in the project.
 
-Please don't use the \verb|{eqnarray}| equation environment. Use
-\verb|{align}| or \verb|{IEEEeqnarray}| instead. The \verb|{eqnarray}|
-environment leaves unsightly spaces around relation symbols.
+\subsection{Data Generation}
+To support experiments requiring larger volumes of data, synthetic datasets
+were generated by replicating and modifying entries from the original dataset.
+A Python-based data generation script was developed to expand the dataset to a
+specified target size (e.g., in megabytes or gigabytes). The script samples
+from existing data attributes and ensures uniqueness in critical fields such
+as post identifiers, thereby creating enlarged datasets that preserve the
+statistical properties of the original data.
 
-Please note that the \verb|{subequations}| environment in {\LaTeX}
-will increment the main equation counter even when there are no
-equation numbers displayed. If you forget that, you might write an
-article in which the equation numbers skip from (17) to (20), causing
-the copy editors to wonder if you've discovered a new method of
-counting.
+\section{Evaluation Tasks}
 
-{\BibTeX} does not work by magic. It doesn't get the bibliographic
-data from thin air but from .bib files. If you use {\BibTeX} to produce a
-bibliography you must send the .bib files. 
+To evaluate the performance of Hadoop, Spark, and Ray across different
+workloads, we selected representative tasks that stress different aspects
+of distributed data processing systems. These tasks cover graph analytics,
+data preparation, and machine learning, providing a balanced assessment of
+computation, communication, and memory management. In particular, we focus
+on three categories of evaluation tasks: graph operations,
+extract-transform-load (ETL) workloads, and machine learning algorithms.  
 
-{\LaTeX} can't read your mind. If you assign the same label to a
-subsubsection and a table, you might find that Table I has been cross
-referenced as Table IV-B3. 
+\subsection{Graph Operations}
 
-{\LaTeX} does not have precognitive abilities. If you put a
-\verb|\label| command before the command that updates the counter it's
-supposed to be using, the label will pick up the last counter to be
-cross referenced instead. In particular, a \verb|\label| command
-should not go before the caption of a figure or a table.
+Graph analytics workloads test the ability of distributed systems to handle
+irregular data structures and communication-heavy computations. We evaluated
+two well-known graph algorithms: \textit{triangle counting} and
+\textit{PageRank}.
 
-Do not use \verb|\nonumber| inside the \verb|{array}| environment. It
-will not stop equation numbers inside \verb|{array}| (there won't be
-any anyway) and it might stop a wanted equation number in the
-surrounding equation.
+\subsubsection{Triangle Counting}
+The Triangle Count algorithm calculates how many triangles each node in a
+graph participates in. A triangle is formed when three nodes are all
+directly connected to each other, creating a fully connected triplet (also
+called a 3-clique). This technique is commonly applied in social network
+analysis to identify tightly connected groups and to measure how cohesive
+these groups are. It also provides insight into the overall structure and
+stability of a network and is often used in the computation of network
+metrics such as the Local Clustering Coefficient \cite{triangles}.
 
-\subsection{Some Common Mistakes}\label{SCM}
-\begin{itemize}
-\item The word ``data'' is plural, not singular.
-\item The subscript for the permeability of vacuum $\mu_{0}$, and other common scientific constants, is zero with subscript formatting, not a lowercase letter ``o''.
-\item In American English, commas, semicolons, periods, question and exclamation marks are located within quotation marks only when a complete thought or name is cited, such as a title or full quotation. When quotation marks are used, instead of a bold or italic typeface, to highlight a word or phrase, punctuation should appear outside of the quotation marks. A parenthetical phrase or statement at the end of a sentence is punctuated outside of the closing parenthesis (like this). (A parenthetical sentence is punctuated within the parentheses.)
-\item A graph within a graph is an ``inset'', not an ``insert''. The word alternatively is preferred to the word ``alternately'' (unless you really mean something that alternates).
-\item Do not use the word ``essentially'' to mean ``approximately'' or ``effectively''.
-\item In your paper title, if the words ``that uses'' can accurately replace the word ``using'', capitalize the ``u''; if not, keep using lower-cased.
-\item Be aware of the different meanings of the homophones ``affect'' and ``effect'', ``complement'' and ``compliment'', ``discreet'' and ``discrete'', ``principal'' and ``principle''.
-\item Do not confuse ``imply'' and ``infer''.
-\item The prefix ``non'' is not a word; it should be joined to the word it modifies, usually without a hyphen.
-\item There is no period after the ``et'' in the Latin abbreviation ``et al.''.
-\item The abbreviation ``i.e.'' means ``that is'', and the abbreviation ``e.g.'' means ``for example''.
-\end{itemize}
-An excellent style manual for science writers is \cite{b7}.
+\subsubsection{PageRank}
+PageRank is an algorithm designed to measure the relative importance of nodes
+within a graph. Originally developed to rank web pages, it can be applied to
+any network where nodes are connected by edges, such as social networks,
+citation networks, or transportation systems.
 
-\subsection{Authors and Affiliations}
-\textbf{The class file is designed for, but not limited to, six authors.} A 
-minimum of one author is required for all conference articles. Author names 
-should be listed starting from left to right and then moving down to the 
-next line. This is the author sequence that will be used in future citations 
-and by indexing services. Names should not be listed in columns nor group by 
-affiliation. Please keep your affiliations as succinct as possible (for 
-example, do not differentiate among departments of the same organization).
+The algorithm assigns a numerical score to each node based on the structure
+of the graph: a node receives a higher score if it is linked to by other
+important nodes. Conceptually, PageRank models a “random walker” moving
+through the graph: at each step, the walker either follows an outgoing edge
+from the current node or jumps to a random node. Nodes that are more
+frequently visited by this process are considered more central or influential
+\cite{pagerank}.
 
-\subsection{Identify the Headings}
-Headings, or heads, are organizational devices that guide the reader through 
-your paper. There are two types: component heads and text heads.
+\subsection{ETL}
 
-Component heads identify the different components of your paper and are not 
-topically subordinate to each other. Examples include Acknowledgments and 
-References and, for these, the correct style to use is ``Heading 5''. Use 
-``figure caption'' for your Figure captions, and ``table head'' for your 
-table title. Run-in heads, such as ``Abstract'', will require you to apply a 
-style (in this case, italic) in addition to the style provided by the drop 
-down menu to differentiate the head from the text.
+Extract-Transform-Load (ETL) tasks are essential for preparing raw
+data into a form suitable for analysis. In our benchmark, ETL
+workloads consisted of extracting text data from storage, performing
+quality checks, and transforming attributes through feature
+engineering. Operations included handling missing or invalid values,
+categorizing posts by length, readability, and sentiment, and
+computing composite measures such as engagement, complexity, and
+quality scores. The final stage involved cleansing invalid entries
+and exporting the processed dataset for downstream use. This
+benchmark highlights the importance of ETL in ensuring data
+reliability, scalability, and interpretability, while also
+stressing system I/O and computational efficiency.
 
-Text heads organize the topics on a relational, hierarchical basis. For 
-example, the paper title is the primary text head because all subsequent 
-material relates and elaborates on this one topic. If there are two or more 
-sub-topics, the next level head (uppercase Roman numerals) should be used 
-and, conversely, if there are not at least two sub-topics, then no subheads 
-should be introduced.
 
-\subsection{Figures and Tables}
-\paragraph{Positioning Figures and Tables} Place figures and tables at the top and 
-bottom of columns. Avoid placing them in the middle of columns. Large 
-figures and tables may span across both columns. Figure captions should be 
-below the figures; table heads should appear above the tables. Insert 
-figures and tables after they are cited in the text. Use the abbreviation 
-``Fig.~\ref{fig}'', even at the beginning of a sentence.
+\subsection{Machine Learning}
 
-\begin{table}[htbp]
-\caption{Table Type Styles}
-\begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline
-\textbf{Table}&\multicolumn{3}{|c|}{\textbf{Table Column Head}} \\
-\cline{2-4} 
-\textbf{Head} & \textbf{\textit{Table column subhead}}& \textbf{\textit{Subhead}}& \textbf{\textit{Subhead}} \\
-\hline
-copy& More table copy$^{\mathrm{a}}$& &  \\
-\hline
-\multicolumn{4}{l}{$^{\mathrm{a}}$Sample of a Table footnote.}
-\end{tabular}
-\label{tab1}
-\end{center}
-\end{table}
+For the machine learning category, we selected the \textit{k-means
+clustering} algorithm, one of the most widely used unsupervised
+learning methods. K-means partitions a dataset into clusters by
+iteratively minimizing the distance between points and their assigned
+centroids \cite{kmeans}. This algorithm is both computation and
+memory-intensive, as it requires repeated passes over the dataset
+and communication of updated centroids across nodes. Evaluating
+k-means allows us to assess how well each framework supports
+iterative, data-parallel machine learning workloads, which are
+central to modern analytics pipelines.  
 
-\begin{figure}[htbp]
-\centerline{\includegraphics{fig1.png}}
-\caption{Example of a figure caption.}
-\label{fig}
+\section{Benchmarks and Results}
+
+In this section, we present performance benchmarks for various
+workloads using Ray and Spark. We measure execution time and memory
+usage across different dataset sizes and number of workers.
+
+\subsection{Graph Operations}
+
+
+
+\begin{figure}[H]
+\centering
+\captionof{table}{Triangle Counting Benchmark Results}
+\resizebox{0.9\columnwidth}{!}{\begin{tabular}{c c c c c c c}\toprule
+
+\multirow{2}{*}{Workers} &
+\multicolumn{3}{c}{Time (s)} &
+\multicolumn{3}{c}{Memory (MB)} \\ 
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+ & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 111.02 & 64.71 & 1 & 159.66 & 456.58 \\
+3 & 5 & 2796.29 & 761.85 & 5 & 158.25 & 1509.84 \\
+2 & 5 & 2960.04 & 823.36 & 5 & 158.62 & 1463.75 \\
+
+\bottomrule\end{tabular}}
 \end{figure}
 
-Figure Labels: Use 8 point Times New Roman for Figure labels. Use words 
-rather than symbols or abbreviations when writing Figure axis labels to 
-avoid confusing the reader. As an example, write the quantity 
-``Magnetization'', or ``Magnetization, M'', not just ``M''. If including 
-units in the label, present them within parentheses. Do not label axes only 
-with units. In the example, write ``Magnetization (A/m)'' or ``Magnetization 
-\{A[m(1)]\}'', not just ``A/m''. Do not label axes with a ratio of 
-quantities and units. For example, write ``Temperature (K)'', not 
-``Temperature/K''.
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{1}
+\captionof{figure}{Spark is significantly faster than Ray for triangle
+counting. As we can see in the graph, not only Ray is slower, but it
+also has a greater slope which means their difference in execution time increases
+with larger datasets.}
 
-\section*{Acknowledgment}
 
-The preferred spelling of the word ``acknowledgment'' in America is without 
-an ``e'' after the ``g''. Avoid the stilted expression ``one of us (R. B. 
-G.) thanks $\ldots$''. Instead, try ``R. B. G. thanks$\ldots$''. Put sponsor 
-acknowledgments in the unnumbered footnote on the first page.
+\end{figure}
 
-\section*{References}
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{2}
+\captionof{figure}{Spark uses more memory (peak) than Ray for
+triangle counting.
+Spark often achieves faster runtimes by caching intermediate data, such
+as RDDs or DataFrames, in memory, reducing redundant recomputation but
+raising peak memory usage \cite{zaharia2018spark, stackoverflow_cache}.
+Ray, on the other hand, favors streaming and chunked data processing without extensive in-memory caching. Its Ray Data feature is designed for scalable, memory-efficient streaming and handles overflow by spilling to disk when necessary
+\cite{ray_perf}.}
+\end{figure}
 
-Please number citations consecutively within brackets \cite{b1}. The 
-sentence punctuation follows the bracket \cite{b2}. Refer simply to the reference 
-number, as in \cite{b3}---do not use ``Ref. \cite{b3}'' or ``reference \cite{b3}'' except at 
-the beginning of a sentence: ``Reference \cite{b3} was the first $\ldots$''
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{3}
+\captionof{figure}{Spark and Ray are equally good at scaling triangle counting
+with more workers.}
+\end{figure}
 
-Number footnotes separately in superscripts. Place the actual footnote at 
-the bottom of the column in which it was cited. Do not put footnotes in the 
-abstract or reference list. Use letters for table footnotes.
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{4}
+\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray or Spark for triangle counting.}
+\end{figure}
 
-Unless there are six authors or more give all authors' names; do not use 
-``et al.''. Papers that have not been published, even if they have been 
-submitted for publication, should be cited as ``unpublished'' \cite{b4}. Papers 
-that have been accepted for publication should be cited as ``in press'' \cite{b5}. 
-Capitalize only the first word in a paper title, except for proper nouns and 
-element symbols.
 
-For papers published in translation journals, please give the English 
-citation first, followed by the original foreign-language citation \cite{b6}.
+
+
+
+
+%================ PageRank =================
+\begin{figure}[H]
+\centering
+\captionof{table}{PageRank Benchmark Results}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c c c c}
+\toprule
+\multirow{2}{*}{Workers} &
+\multicolumn{3}{c}{Time (s)} &
+\multicolumn{3}{c}{Memory (MB)} \\ 
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+ & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 93.65 & 69.32 & 1 & 345.43 & 183.16 \\
+3 & 5 & 467.54 & 144.78 & 5 & 996.92 & 182.16 \\
+2 & 5 & 506.98 & 178.43 & 5 & 995.28 & 182.48 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{5}
+\captionof{figure}{For PageRank, Spark is faster than Ray.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{6}
+\captionof{figure}{For PageRank, Spark also used less memory.
+Spark's memory usage remains stable, while Ray's memory increases with dataset size.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{7}
+\captionof{figure}{For PageRank, Spark is faster at scaling, showing significant speedup with more workers.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{8}
+\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray or Spark for PageRank.}
+\end{figure}
+
+
+\subsection{ETL}
+
+
+
+%================ ETL Workloads =================
+\begin{figure}[H]
+\centering
+\captionof{table}{ETL: Total (for Extract, Transform and Load) Benchmark Results}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c c c c}
+\toprule
+\multirow{2}{*}{Workers} &
+\multicolumn{3}{c}{Time (s)} &
+\multicolumn{3}{c}{Memory (MB)} \\ 
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+ & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 50.20 & 37.77 & 1 & 230.49 & 160.33 \\
+3 & 5 & 261.73 & 176.43 & 5 & 228.31 & 162.47 \\
+2 & 5 & 263.91 & 201.82 & 5 & 232.18 & 160.16 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{9}
+\captionof{figure}{ETL: Execution time comparison. Spark is faster than Ray.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{10}
+\captionof{figure}{ETL: Memory usage comparison. Ray uses more memory than Spark. Both remain stable for larger datasets.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{11}
+\captionof{figure}{ETL: Spark is faster at scaling, showing significant speedup with more workers. Ray's speedup is less pronounced.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{12}
+\captionof{figure}{ETL: Scaling didn't significantly impact peak memory used by Ray or Spark.}
+\end{figure}
+
+
+
+% ETL Extract phase
+\begin{figure}[H]
+\centering
+\captionof{table}{ETL Extract: Execution time for Ray and Spark}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c}
+\toprule
+Workers & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 15.06 & 22.60 \\
+3 & 5 & 78.52 & 99.34 \\
+2 & 5 & 79.17 & 127.62 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{13}
+\captionof{figure}{ETL Extract phase: Similar results, but Ray is faster.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{14}
+\captionof{figure}{ETL Extract phase: Spark is better at utilizing more workers.}
+\end{figure}
+
+% ETL Transform phase
+\begin{figure}[H]
+\centering
+\captionof{table}{ETL Transform: Execution time for Ray and Spark}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c}
+\toprule
+Workers & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 35.14 & 4.00 \\
+3 & 5 & 183.21 & 21.00 \\
+2 & 5 & 184.74 & 19.06 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{15}
+\captionof{figure}{ETL Transform phase: Spark is significantly faster than Ray for Transform operations.}
+\end{figure}
+
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.8\columnwidth]{16}
+\captionof{figure}{ETL Transform: Spark increased memory usage when scaling.}
+\end{figure}
+
+
+% ETL Load phase
+\begin{figure}[H]
+\centering
+\captionof{table}{ETL Load: Execution time for Ray and Spark}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c}
+\toprule
+Workers & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 0.00 & 11.17 \\
+3 & 5 & 0.00 & 56.09 \\
+2 & 5 & 0.00 & 55.14 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{17}
+\captionof{figure}{ETL Load phase: Ray achieves near-zero load time due to in-memory optimizations, whereas Spark's load time increases with dataset size.}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{18}
+\captionof{figure}{ETL Load phase: Scaling didn't significantly impact peak memory used by Ray or Spark.}
+\end{figure}
+
+
+\subsection{Machine Learning}
+
+
+%================ Machine Learning =================
+\begin{figure}[H]
+\centering
+\captionof{table}{KMeans Benchmark Results}
+\resizebox{0.9\columnwidth}{!}{%
+\begin{tabular}{c c c c c c c}
+\toprule
+\multirow{2}{*}{Workers} &
+\multicolumn{3}{c}{Time (s)} &
+\multicolumn{3}{c}{Memory (MB)} \\ 
+\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+ & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
+\midrule
+3 & 1 & 14.52 & 106.48 & 1 & 367.60 & 168.13 \\
+3 & 5 & 194.62 & 247.24 & 5 & 705.59 & 160.21 \\
+2 & 5 & 244.45 & 313.99 & 5 & 708.64 & 169.49 \\
+\bottomrule
+\end{tabular}%
+}
+\end{figure}
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{19}
+\captionof{figure}{KMeans: Ray is significantly faster for small datasets and remains faster than Sparks for larger datasets too.}
+\end{figure}
+
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{20}
+\captionof{figure}{KMeans: Spark used less memory than Ray.}
+\end{figure}
+
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{21}
+\captionof{figure}{KMeans: Both showed significant improvement in execution time when scaling.}
+\end{figure}
+
+
+\begin{figure}[H]\centering
+\includegraphics[width=0.9\columnwidth]{22}
+\captionof{figure}{KMeans: Spark used 5\% less memory when scaling. Ray didn't show improvement.}
+\end{figure}
+
+
+
+\section{Comparison}
+
+\subsection{Performance}
+
+In graph processing workloads, Spark consistently outperforms Ray in
+terms of execution time, reflecting its specialized graph processing
+optimizations. Memory usage, however, depends on the specific
+algorithm: Ray requires less memory for triangle counting, while
+Spark is more memory-efficient for PageRank computations due to its
+caching and shuffle strategies. In ETL workloads, each framework
+demonstrates strengths in different phases. Spark achieves
+significantly faster performance during the transformation phase,
+leveraging in-memory operations and optimized data shuffles, but it
+is relatively slower in data extraction and loading. In contrast,
+Ray provides faster execution for machine learning tasks, though this
+advantage comes with higher memory consumption. Overall, Spark offers
+superior performance for graph operations and ETL transformations,
+whereas Ray is more efficient for machine learning and ETL extraction
+and loading phases. These results suggest a general trade-off:
+frameworks that prioritize execution speed often incur higher memory
+usage, while those optimizing memory tend to sacrifice some runtime
+performance.
+
+
+\subsection{Scalability}
+
+Both Ray and Spark exhibit notable improvements in execution time
+when scaling graph operations and K-Means clustering workloads,
+demonstrating their ability to efficiently leverage additional
+computational resources. Among these tasks, Spark maintains a
+performance advantage for PageRank computations, likely due to
+its optimized graph processing libraries and in-memory caching
+mechanisms. In ETL workloads, the behavior of the frameworks
+diverges. Ray shows relatively consistent performance across
+extraction, transformation, and loading phases, with minimal
+improvement when scaling resources. Spark, in contrast, delivers
+mixed results: it achieves significant acceleration during the
+extraction phase but exhibits slower performance during
+transformation and loading, suggesting that the efficiency gains
+from parallelization can be limited by I/O and memory bottlenecks
+in these phases. Regarding memory usage, both frameworks demonstrate
+comparable patterns when the number of workers increases, indicating
+that scaling primarily improves runtime performance without
+substantially affecting peak memory consumption. These observations
+highlight the importance of selecting the appropriate framework
+based on the specific workload characteristics and performance
+priorities.
+
+
+\subsection{Ease of Use}
+Both Ray and Spark provide high-level
+APIs that simplify the development of
+distributed data processing pipelines, though they
+differ in abstraction and workflow management.
+Ray was much easier to set up,
+as it is installed as a Python
+library and requires minimal configuration to
+run, making it accessible for quick experiments
+and small-scale workflows. Spark, in contrast,
+needs substantial configuration, including cluster setup,
+resource management, and environment tuning, which can
+be time-consuming and challenging for new users.
+Once configured, Spark provides optimized execution
+and built-in task scheduling for large workloads,
+but the initial setup overhead is significant.
+Overall, Ray offers a faster and simpler
+way to start distributed computations, whereas
+Spark is more complex to initialize but
+provides extensive optimizations for high-performance workloads.
+
+\section{Availability and Reproducibility}
+All experiments were performed on publicly available datasets and using
+open-source versions of Ray and Spark. Scripts, configuration files, and
+instructions for reproducing the experiments are provided in the supplementary
+materials and a public repository (link omitted here). The experiments use
+standardized benchmarks for PageRank, ETL, triangle counting, and KMeans,
+ensuring that the results can be independently verified and extended by other
+researchers. Containerization and virtual environment specifications further
+improve reproducibility.
+
+The scripts, configuration files, and instructions for reproducing the experiments are available at our 
+\href{https://github.com/liuminex/Big-Data-HDFS-Ray-vs-Spark}{GitHub repository}.
+
+
+
+\section{Conclusion}
+This study provides a comparative evaluation of Ray and Spark
+across graph processing, ETL, and machine learning workloads.
+Spark demonstrates superior performance in graph operations and
+ETL transformation tasks, largely due to its optimized libraries,
+in-memory caching, and efficient shuffle strategies. Ray, however,
+exhibits advantages in machine learning workloads and the extraction
+and loading phases of ETL, benefiting from its flexible task-based
+execution model. Memory usage patterns indicate a trade-off:
+frameworks that prioritize execution speed often incur higher
+memory consumption, while memory-efficient frameworks may experience
+slower runtimes. Both frameworks scale effectively with additional
+computational resources, although Spark’s specialized optimizations
+allow it to maintain a performance edge in certain workloads.
+
+
 
 \begin{thebibliography}{00}
-\bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
-\bibitem{b2} J. Clerk Maxwell, A Treatise on Electricity and Magnetism, 3rd ed., vol. 2. Oxford: Clarendon, 1892, pp.68--73.
-\bibitem{b3} I. S. Jacobs and C. P. Bean, ``Fine particles, thin films and exchange anisotropy,'' in Magnetism, vol. III, G. T. Rado and H. Suhl, Eds. New York: Academic, 1963, pp. 271--350.
-\bibitem{b4} K. Elissa, ``Title of paper if known,'' unpublished.
-\bibitem{b5} R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
-\bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
-\bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
+
+\bibitem{hdfs} IBM, ``What is HDFS?,'' IBM. Available: \url{https://www.ibm.com/think/topics/hdfs}.
+
+\bibitem{ray} Ray Project, “Overview - Ray 2.48.0”. Available: \url{https://docs.ray.io/en/latest/ray-overview/index.html}.
+
+\bibitem{spark} Amazon Web Services, “What is Apache Spark?,”. Available: \url{https://aws.amazon.com/what-is/apache-spark/}.
+
+\bibitem{kumar2018community} S. Kumar, W. L. Hamilton, J. Leskovec, and D. Jurafsky, ``Community interaction and conflict on the web,'' in \textit{Proc. of the 2018 World Wide Web Conference (WWW)}, pp. 933--943, 2018.
+
+\bibitem{reddit_snap} S. Kumar, W.L. Hamilton, J. Leskovec, D. Jurafsky, ``Reddit Hyperlinks Dataset'' Stanford SNAP. Available: \url{https://snap.stanford.edu/data/soc-RedditHyperlinks.html}.
+
+\bibitem{triangles} Neo4j, ``Triangle Count,'' Neo4j Graph Data Science. Available: \url{https://neo4j.com/docs/graph-data-science/current/algorithms/triangle-count/}.
+
+\bibitem{pagerank} E. Roberts and K. Schroeder, ``The Google PageRank Algorithm,'' Stanford University CS54N. Available: \url{https://web.stanford.edu/class/cs54n/handouts/24-GooglePageRankAlgorithm.pdf}.
+
+\bibitem{kmeans} C. Piech, ``K-Means,'' Stanford University CS221. Available: \url{https://stanford.edu/~cpiech/cs221/handouts/kmeans.html}.
+
+\bibitem{zaharia2018spark} M. Zaharia, R. Xin, P. Wendell, T. Das, M. Armbrust, A. Dave, X. Meng, J. Rosen, S. Venkataraman, M. J. Franklin, A. Ghodsi, J. Gonzalez, S. Shenker, and I. Stoica, ``Apache Spark: A Unified Engine for Big Data Processing,'' \textit{arXiv:1804.10563}, 2018. Available: \url{https://arxiv.org/abs/1804.10563}.
+
+\bibitem{stackoverflow_cache} Stack Overflow, ``Spark cache vs broadcast,'' Available: \url{https://stackoverflow.com/questions/38056774/spark-cache-vs-broadcast}.
+
+\bibitem{ray_perf} Ray Project, ``Performance Tips for Ray Data,'' Available: \url{https://docs.ray.io/en/latest/data/performance-tips.html}.
+
+
 \end{thebibliography}
-\vspace{12pt}
-\color{red}
-IEEE conference templates contain guidance text for composing and formatting conference papers. Please ensure that all template text is removed from your conference paper prior to submission to the conference. Failure to remove the template text from your paper may result in your paper not being published.
+
 
 \end{document}
