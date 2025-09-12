@@ -1,62 +1,83 @@
-import sys
-import os
-import time
 import argparse
+import os
+import resource
+import sys
+import time
+
 import numpy as np
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, count, sum as spark_sum, avg, max as spark_max, min as spark_min,
     when, desc, round as spark_round)
 from pyspark.sql.types import *
-import resource
 
 os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
 
 
 def display_results(config, start_time, end_time, extraction_time, transformation_time, loading_time, sample_results):
+    """Display and save ETL benchmark results to console and file."""
     execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # MB on Linux
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     
-    results_text = f"""
-=== ETL SPARK BENCHMARK RESULTS ===
-Dataset: {config['datafile']}
-Total execution time: {execution_time:.2f} seconds
-  - Extraction time: {extraction_time:.2f} seconds
-  - Transformation time: {transformation_time:.2f} seconds
-  - Loading time: {loading_time:.2f} seconds
-Peak memory usage: {peak_memory:.2f} MB
-Partitions: {config.get('partitions', 'default')}
-
-ETL Pipeline Operations Completed:
-1. Data Extraction from HDFS
-2. Data Quality Assessment
-3. Text Processing and Feature Engineering
-4. Sentiment Analysis Aggregations
-5. Time-based Aggregations
-6. Complex Joins and Window Functions
-7. Data Validation and Cleansing
-8. Results Export
-
-Sample Transformation Results:
-"""
+    # Format execution details
+    execution_details = f"""Execution Time Breakdown:
+  - Total execution time: {execution_time:.2f} seconds
+  - Data extraction time: {extraction_time:.2f} seconds
+  - Data transformation time: {transformation_time:.2f} seconds
+  - Data loading time: {loading_time:.2f} seconds"""
     
+    # Format sample results
+    sample_output = "\nSample Transformation Results:"
     for key, value in sample_results.items():
-        results_text += f"{key}:\n{value}\n\n"
+        sample_output += f"\n{key}:\n{value}\n"
+    
+    # Display formatted results
+    results_header = "ETL BENCHMARK RESULTS (SPARK)"
+    results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+{execution_details}
+Peak memory usage: {peak_memory_mb:.2f} MB
+Partitions processed: {config.get('partitions', 'N/A')}
+
+ETL Pipeline Operations:
+• Data Extraction from HDFS with optimized partitioning
+• Data Quality Assessment and validation
+• Text Processing and Feature Engineering
+• Sentiment Analysis with aggregations
+• Time-based data aggregations
+• Complex joins and window functions
+• Data validation and cleansing
+• Results export and persistence
+{sample_output}
+{'=' * 60}
+"""
     
     print(results_text)
     
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'etl_spark_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'etl_spark_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
     
-    print(f"Results saved to results/{filename}")
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 
 def extract_data(spark, config):
+    """Extract data from HDFS with optimized partitioning and caching."""
     # Distributed data extraction from HDFS
     print("=== EXTRACTION PHASE ===")
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
@@ -89,6 +110,7 @@ def extract_data(spark, config):
 
 
 def transform_data(spark, df, config):
+    """Apply distributed transformations and aggregations to the dataset."""
     # Distributed data transformation
     print("=== TRANSFORMATION PHASE ===")
     
@@ -215,6 +237,7 @@ def transform_data(spark, df, config):
 
 
 def load_data(spark, df_transformed, config):
+    """Save transformed data and summaries to HDFS."""
     # Distributed data loading to HDFS
     print("=== LOADING PHASE ===")
     
@@ -239,6 +262,7 @@ def load_data(spark, df_transformed, config):
 
 
 def etl_spark(spark, config):
+    """Execute the complete ETL pipeline using Spark distributed computing."""
     # Main ETL pipeline orchestrator
     print("Starting Spark ETL Pipeline...")
     
@@ -264,14 +288,17 @@ def etl_spark(spark, config):
 
 
 def main():
+    """Parse arguments and run ETL benchmark with Spark."""
     parser = argparse.ArgumentParser(description='ETL Benchmark using Spark')
-    parser.add_argument('-f', '--file', type=str, required=True, help='Input CSV file name in HDFS /data/ directory')
-    parser.add_argument('--partitions', type=int, default=12, help='Number of partitions')
+    parser.add_argument('-f', '--datafile', type=str, required=True, 
+                       help='Input CSV file name in HDFS /data/ directory')
+    parser.add_argument('--partitions', type=int, default=12, 
+                       help='Number of partitions for distributed processing')
     
     args = parser.parse_args()
     
     config = {
-        'datafile': args.file,
+        'datafile': args.datafile,
         'partitions': args.partitions
     }
     

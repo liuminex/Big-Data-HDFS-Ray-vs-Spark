@@ -1,8 +1,9 @@
-import sys
-import os
-import time
 import argparse
+import os
 import resource
+import sys
+import time
+
 import networkx as nx
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, collect_list
@@ -11,35 +12,62 @@ os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
 
 def display_results(config, start_time, end_time, results, total_triangles):
+    """Display and save triangle counting results to console and file."""
     execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    
+    # Display formatted results
+    results_header = "TRIANGLE COUNTING RESULTS (SPARK)"
     results_text = f"""
-Dataset: {config['file']}
-Total execution time: {execution_time:.2f} seconds
-Peak memory usage: {peak_memory:.2f} MB
-Total triangles found: {total_triangles}
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+Execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory_mb:.2f} MB
+Total triangles found: {total_triangles:,}
+
+Algorithm Configuration:
+• Counting method: Distributed edge-based intersection
+• Graph representation: Spark DataFrames with broadcasts
+• Processing strategy: Adjacency list broadcast + parallel computation
+{'=' * 60}
 """
+    
     print(results_text)
+    
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'triangles_spark_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'triangles_spark_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
-    print(f"Results saved to results/{filename}")
+    
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 def main():
+    """Parse arguments and run triangle counting benchmark with Spark."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Count triangles in a graph using Spark (NetworkX on driver)')
-    parser.add_argument('-f', '--file', type=str, default='data_reddit_100M.csv',
-                        help='Path to the input CSV file')
+    parser = argparse.ArgumentParser(description='Triangle counting using distributed Spark')
+    parser.add_argument('-f', '--datafile', type=str, required=True,
+                       help='Input CSV file name in HDFS /data/ directory')
     args = parser.parse_args()
-    config = {'file': args.file}
+    config = {
+        'datafile': args.datafile
+    }
 
     # Initialize Spark session
     spark = SparkSession.builder.appName("TriangleCountingSpark").getOrCreate()
     start_time = time.time()
-    hdfs_path = f"hdfs://o-master:54310/data/{args.file}"
+    hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
     df = spark.read.option("header", "true") \
         .option("inferSchema", "true") \
         .option("multiline", "false") \

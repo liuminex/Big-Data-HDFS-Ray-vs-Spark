@@ -1,45 +1,70 @@
-import time
-import ray
+import argparse
 import os
+import resource
+import time
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
-import argparse
-import resource
-from collections import defaultdict
+import ray
 
 
 def display_results(config, start_time, end_time, convergence_iterations, top_nodes):
+    """Display and save PageRank results to console and file."""
     execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     
-    results_text = f"""
-Dataset: {config['datafile']}
-Total execution time: {execution_time:.2f} seconds
-Peak memory usage: {peak_memory:.2f} MB
-Convergence iterations: {convergence_iterations}
-Damping factor: {config['damping_factor']}
-Convergence threshold: {config['convergence_threshold']}
-
-Top {len(top_nodes)} nodes by PageRank score:
-"""
-    
+    # Format top nodes output
+    top_nodes_output = f"\nTop {len(top_nodes)} Nodes by PageRank Score:"
     for i, (node, score) in enumerate(top_nodes, 1):
-        results_text += f"{i}. {node}: {score:.6f}\n"
+        top_nodes_output += f"\n{i:3d}. {node}: {score:.6f}"
+    
+    # Display formatted results
+    results_header = "PAGERANK ALGORITHM RESULTS (RAY)"
+    results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+Execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory_mb:.2f} MB
+Convergence iterations: {convergence_iterations}
+Maximum iterations: {config['max_iterations']}
+
+Algorithm Configuration:
+• PageRank algorithm: Power iteration method
+• Damping factor: {config['damping_factor']}
+• Convergence threshold: {config['convergence_threshold']}
+• Convergence sample size: {config.get('convergence_sample_size', 10000)}
+• Graph representation: Adjacency lists (distributed)
+• Isolated node handling: Base score initialization
+{top_nodes_output}
+{'=' * 60}
+"""
     
     print(results_text)
     
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'pagerank_ray_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'pagerank_ray_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
     
-    print(f"Results saved to results/{filename}")
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 
 @ray.remote(scheduling_strategy="SPREAD")
 def build_adjacency_chunk(data_chunk):
+    """Build adjacency lists and node statistics from a data chunk."""
     # Build adjacency lists from a chunk of data - keep distributed
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(build_adjacency_chunk) Processing chunk on node: {node_ip}")
@@ -67,13 +92,14 @@ def build_adjacency_chunk(data_chunk):
 
 @ray.remote(scheduling_strategy="SPREAD")
 def pagerank_iteration_chunk(adjacency_chunk, scores_dict, out_degrees_dict, damping_factor, total_nodes):
+    """Perform one PageRank iteration on an adjacency chunk."""
     # Perform one PageRank iteration on a chunk of the adjacency list
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(pagerank_iteration_chunk) Processing {len(adjacency_chunk)} nodes on node: {node_ip}")
     
-    new_scores = defaultdict(float)
+    new_scores = {}
     
-    # Initialize all nodes with base score
+    # Initialize all target nodes with base score (isolated node handling)
     for source_node, neighbors in adjacency_chunk.items():
         for target_node in neighbors:
             if target_node not in new_scores:
@@ -82,16 +108,18 @@ def pagerank_iteration_chunk(adjacency_chunk, scores_dict, out_degrees_dict, dam
     # Add contributions from source nodes
     for source_node, neighbors in adjacency_chunk.items():
         if source_node in out_degrees_dict and out_degrees_dict[source_node] > 0:
-            contribution = scores_dict.get(source_node, 1.0 / total_nodes) / out_degrees_dict[source_node]
+            source_score = scores_dict.get(source_node, 1.0 / total_nodes)
+            contribution = source_score * damping_factor / out_degrees_dict[source_node]
             
             # Distribute contribution to all neighbors
             for target_node in neighbors:
-                new_scores[target_node] += damping_factor * contribution
+                new_scores[target_node] += contribution
     
-    return dict(new_scores)
+    return new_scores
 
 
 def build_distributed_graph(config):
+    """Build distributed graph structure from CSV data using Ray workers."""
     # Build distributed adjacency lists using Ray with streaming approach
     data_path = f"../data/{config['datafile']}"
     
@@ -150,6 +178,7 @@ def build_distributed_graph(config):
 
 
 def pagerank_ray(config):
+    """Execute distributed PageRank algorithm using Ray."""
     # Distributed PageRank implementation using Ray
     print("Building distributed graph structure...")
     adjacency_refs, out_degrees, all_nodes = build_distributed_graph(config)
@@ -163,8 +192,18 @@ def pagerank_ray(config):
     convergence_threshold = config["convergence_threshold"]
     max_iterations = config["max_iterations"]
     
+    # Standardized convergence parameters
+    convergence_sample_size = min(config.get("convergence_sample_size", 10000), total_nodes)
+    convergence_sample_fraction = convergence_sample_size / total_nodes
+    
+    print(f"PageRank configuration:")
+    print(f"  Total nodes: {total_nodes}")
+    print(f"  Damping factor: {damping_factor}")
+    print(f"  Convergence threshold: {convergence_threshold}")
+    print(f"  Convergence sample size: {convergence_sample_size}")
+    print(f"  Max iterations: {max_iterations}")
+    
     print(f"Starting PageRank iterations with {len(adjacency_refs)} distributed chunks...")
-    print(f"Total nodes: {total_nodes}")
     
     for iteration in range(max_iterations):
         print(f"Iteration {iteration + 1}/{max_iterations}")
@@ -191,27 +230,39 @@ def pagerank_ray(config):
             batch_results = ray.get(futures)
             all_chunk_results.extend(batch_results)
         
-        # Merge results efficiently
-        new_scores = {node: (1.0 - damping_factor) / total_nodes for node in all_nodes}
+        # Merge results efficiently - handle isolated nodes properly
+        new_scores = {}
         
+        # Initialize all nodes with base score (handles isolated nodes)
+        for node in all_nodes:
+            new_scores[node] = (1.0 - damping_factor) / total_nodes
+        
+        # Add contributions from chunks
         for chunk_scores in all_chunk_results:
             for node, score in chunk_scores.items():
-                new_scores[node] = score
+                if node in new_scores:
+                    # Replace base score with computed score (includes base + contributions)
+                    new_scores[node] = score
         
-        # Check for convergence
+        # Standardized convergence check
         if iteration > 0:
-            # Sample nodes for convergence check if graph is very large
-            sample_size = min(1000, total_nodes)
-            sample_nodes = list(all_nodes)[:sample_size] if total_nodes > 1000 else all_nodes
+            # Use deterministic sampling for convergence check
+            np.random.seed(42)  # Fixed seed for reproducible sampling
+            if convergence_sample_size < total_nodes:
+                # Random sampling of nodes for large graphs
+                sample_nodes = np.random.choice(list(all_nodes), convergence_sample_size, replace=False)
+            else:
+                sample_nodes = list(all_nodes)
             
-            diff = sum((current_scores[node] - new_scores[node]) ** 2 
-                      for node in sample_nodes)
+            # Calculate L2 norm of differences
+            diff = sum((current_scores[node] - new_scores[node]) ** 2 for node in sample_nodes)
             
-            # Scale diff if we sampled
-            if sample_size < total_nodes:
-                diff = diff * (total_nodes / sample_size)
+            # Scale diff to represent full graph if we sampled
+            if convergence_sample_size < total_nodes:
+                diff = diff / convergence_sample_fraction
             
-            print(f"  Convergence metric: {diff:.8f}")
+            print(f"  Convergence metric (L2 norm): {diff:.8f}")
+            print(f"  Sample size: {len(sample_nodes)} / {total_nodes}")
             
             if diff < convergence_threshold:
                 print(f"Converged after {iteration + 1} iterations")
@@ -227,24 +278,27 @@ def pagerank_ray(config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run distributed PageRank using Ray')
-    parser.add_argument('-f', '--file', 
-                       required=True,
-                       help='Name of the CSV file in local data/ directory')
+    """Parse arguments and run PageRank benchmark with Ray."""
+    parser = argparse.ArgumentParser(description='Distributed PageRank using Ray')
+    parser.add_argument('-f', '--datafile', type=str, required=True,
+                       help='Input CSV file name in data/ directory')
     parser.add_argument('--damping-factor', type=float, default=0.85,
-                       help='PageRank damping factor (default: 0.85)')
+                       help='Damping factor for PageRank algorithm')
     parser.add_argument('--max-iterations', type=int, default=20,
-                       help='Maximum number of iterations (default: 20)')
+                       help='Maximum number of iterations')
     parser.add_argument('--convergence-threshold', type=float, default=1e-6,
-                       help='Convergence threshold (default: 1e-6)')
+                       help='Convergence threshold for PageRank')
+    parser.add_argument('--convergence-sample-size', type=int, default=10000,
+                       help='Sample size for convergence checking on large graphs')
     
     args = parser.parse_args()
     
     config = {
-        "datafile": args.file,
-        "damping_factor": args.damping_factor,
-        "max_iterations": args.max_iterations,
-        "convergence_threshold": args.convergence_threshold
+        'datafile': args.datafile,
+        'damping_factor': args.damping_factor,
+        'max_iterations': args.max_iterations,
+        'convergence_threshold': args.convergence_threshold,
+        'convergence_sample_size': args.convergence_sample_size
     }
     
     start_time = time.time()

@@ -1,48 +1,69 @@
-import sys
-import os
-import time
 import argparse
+import os
 import resource
-import pandas as pd
-import ray
+import sys
+import time
 from collections import defaultdict
 
-def display_results(config, start_time, end_time, results, total_triangles):
-    execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
-    
-    results_text = f"""
-Dataset: {config['file']}
-Total execution time: {execution_time:.2f} seconds
-Peak memory usage: {peak_memory:.2f} MB
-Number of chunks: {config['chunks']}
-Total triangles found: {total_triangles}
+import pandas as pd
+import ray
 
-Triangle counts per chunk:
-"""
+def display_results(config, start_time, end_time, results, total_triangles):
+    """Display and save triangle counting results to console and file."""
+    execution_time = end_time - start_time
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     
+    # Format chunk results
+    chunk_details = "\nTriangle Counts per Chunk:"
     for idx, result in enumerate(results):
         chunk_total = sum(result.values()) if isinstance(result, dict) else result
-        results_text += f"Chunk {idx}: {chunk_total} triangles\n"
+        chunk_details += f"\n  Chunk {idx + 1}: {chunk_total:,} triangles"
+    
+    # Display formatted results
+    results_header = "TRIANGLE COUNTING RESULTS (RAY)"
+    results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+Execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory_mb:.2f} MB
+Number of chunks processed: {config['chunks']}
+Total triangles found: {total_triangles:,}
+
+Algorithm Configuration:
+• Counting method: Adjacency list intersection
+• Graph representation: Distributed adjacency lists
+• Processing strategy: Chunk-based parallel execution
+{chunk_details}
+{'=' * 60}
+"""
     
     print(results_text)
     
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'triangles_ray_results_{os.path.basename(config["file"]).replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'triangles_ray_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
     
-    print(f"Results saved to results/{filename}")
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 def main():
+    """Parse arguments and run triangle counting benchmark with Ray."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Count triangles in a graph using Ray')
-    parser.add_argument('-f', '--file', type=str, default='data_reddit_100M.csv',
-                        help='Path to the input CSV file')
-    parser.add_argument('-c', '--chunks', type=int, default=4,
-                        help='Number of chunks to split the nodes into')
+    parser = argparse.ArgumentParser(description='Triangle counting using distributed Ray')
+    parser.add_argument('-f', '--datafile', type=str, required=True,
+                       help='Input CSV file name in local data/ directory')
     args = parser.parse_args()
 
     # Initialize Ray first - connect to existing cluster
@@ -55,9 +76,9 @@ def main():
         print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")
 
     # Count total rows first without loading all data
-    print(f"Analyzing file ../data/{args.file} to determine chunking strategy...")
+    print(f"Analyzing file ../data/{args.datafile} to determine chunking strategy...")
     total_rows = 0
-    with open(f'../data/{args.file}', 'r') as file:
+    with open(f'../data/{args.datafile}', 'r') as file:
         next(file)  # Skip header
         for line in file:
             total_rows += 1
@@ -163,14 +184,14 @@ def main():
     
 
     home_dir = os.path.expanduser('~')
-    file_path = f'{home_dir}/project/data/{args.file}'
+    file_path = f'{home_dir}/project/data/{args.datafile}'
     print(f"Using file path: {file_path}")
     
     # Verify file exists on master
     if not os.path.exists(file_path):
         print(f"ERROR: File {file_path} not found on master node!")
         # Try the relative path as fallback
-        fallback_path = os.path.abspath(f'../data/{args.file}')
+        fallback_path = os.path.abspath(f'../data/{args.datafile}')
         if os.path.exists(fallback_path):
             file_path = fallback_path
             print(f"Using fallback path: {file_path}")
@@ -251,7 +272,7 @@ def main():
     
     # Create config dictionary for display_results
     config = {
-        'file': args.file,
+        'datafile': args.datafile,
         'chunks': len(all_results)
     }
     

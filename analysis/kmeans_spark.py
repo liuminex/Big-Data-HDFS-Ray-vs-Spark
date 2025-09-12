@@ -1,52 +1,80 @@
-import sys
-import os
-import time
 import argparse
+import os
+import resource
+import sys
+import time
+
 import numpy as np
-from pyspark.sql import SparkSession
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.feature import VectorAssembler
+from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, count
-import resource
 
 os.environ['PYSPARK_PYTHON'] = sys.executable
 os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
 
 
 def display_results(config, start_time, end_time, centroids, sample_data):
+    """Display and save K-Means clustering results to console and file."""
     execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # MB on Linux
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     
+    # Format centroids output
+    centroids_output = "\nFinal Cluster Centroids:"
+    for i, centroid in enumerate(centroids):
+        centroids_output += f"\nCluster {i}: [{', '.join(f'{x:.4f}' for x in centroid)}]"
+    
+    # Format sample data output
+    sample_output = "\nSample Clustered Data:"
+    for i, row in enumerate(sample_data[:5]):  # Limit to first 5 samples
+        features_str = '[' + ', '.join(f'{x:.4f}' for x in row.features) + ']'
+        sample_output += f"\n  Features: {features_str} -> Cluster: {row.cluster}"
+    
+    # Display formatted results
+    results_header = "K-MEANS CLUSTERING RESULTS (SPARK)"
     results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
 Dataset: {config['datafile']}
-Total execution time: {execution_time:.2f} seconds
-Peak memory usage: {peak_memory:.2f} MB
-Number of clusters (K): {config['k_clusters']}
+Execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory_mb:.2f} MB
+Number of clusters (K): {config['clusters']}
 Maximum iterations: {config['max_iterations']}
 
-Final Centroids:
+Algorithm Configuration:
+• Clustering method: K-Means with Lloyd's algorithm
+• Convergence criterion: Centroid shift < {config.get('convergence_tolerance', 1e-4)}
+• Initialization: k-means++
+• Random seed: {config.get('random_seed', 42)}
+• Features used: 8 text analysis features
+{centroids_output}
+{sample_output}
+{'=' * 60}
 """
-    
-    for i, centroid in enumerate(centroids):
-        results_text += f"Cluster {i}: {centroid}\n"
-    
-    results_text += f"\nSample clustered data:\n"
-    for row in sample_data:
-        results_text += f"Features: {row.features}, Cluster: {row.cluster}\n"
     
     print(results_text)
     
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'kmeans_spark_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'kmeans_spark_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
     
-    print(f"Results saved to results/{filename}")
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 
 def load_and_prepare_data(spark, config):
+    """Load data from HDFS and prepare feature vectors for clustering."""
     # Load data from HDFS with optimized partitioning
     hdfs_path = f"hdfs://o-master:54310/data/{config['datafile']}"
     
@@ -89,22 +117,34 @@ def load_and_prepare_data(spark, config):
 
 
 def kmeans_spark(spark, config):
+    """Execute distributed K-Means clustering using Spark MLlib."""
     # Distributed K-Means implementation using Spark MLlib
     print("Preparing data for K-Means clustering...")
     df_features = load_and_prepare_data(spark, config)
     
-    K = config["k_clusters"]
-    MAX_ITER = config["max_iterations"]
+    k = config["clusters"]
+    max_iter = config["max_iterations"]
+    convergence_tolerance = config.get('convergence_tolerance', 1e-4)
+    random_seed = config.get('random_seed', 42)
     
-    print(f"Starting K-Means clustering with K={K}, max_iter={MAX_ITER}...")
+    print(f"K-Means configuration:")
+    print(f"  Clusters: {k}")
+    print(f"  Max iterations: {max_iter}")
+    print(f"  Convergence tolerance: {convergence_tolerance}")
+    print(f"  Random seed: {random_seed}")
+    print(f"  Initialization: k-means++")
     
-    # Configure and train K-Means model
+    print(f"Starting K-Means clustering with K={k}, max_iter={max_iter}...")
+    
+    # Configure and train K-Means model with explicit parameters
     kmeans = KMeans() \
-        .setK(K) \
-        .setMaxIter(MAX_ITER) \
+        .setK(k) \
+        .setMaxIter(max_iter) \
         .setFeaturesCol("features") \
         .setPredictionCol("cluster") \
-        .setSeed(42)
+        .setSeed(random_seed) \
+        .setInitMode("k-means||") \
+        .setTol(convergence_tolerance)
     
     # Fit the model
     model = kmeans.fit(df_features)
@@ -131,21 +171,27 @@ def kmeans_spark(spark, config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Run distributed K-Means clustering using Spark')
-    parser.add_argument('-f', '--file', 
-                       required=True,
-                       help='Name of the CSV file in HDFS /data/ directory')
+    """Parse arguments and run K-Means benchmark with Spark."""
+    parser = argparse.ArgumentParser(description='Distributed K-Means clustering using Spark')
+    parser.add_argument('-f', '--datafile', type=str, required=True,
+                       help='Input CSV file name in HDFS /data/ directory')
     parser.add_argument('-k', '--clusters', type=int, default=3,
-                       help='Number of clusters (default: 3)')
+                       help='Number of clusters for K-Means')
     parser.add_argument('--max-iterations', type=int, default=20,
-                       help='Maximum number of iterations (default: 20)')
+                       help='Maximum number of iterations')
+    parser.add_argument("--convergence-tolerance", type=float, default=1e-4,
+                       help="Convergence tolerance for centroid shift")
+    parser.add_argument("--random-seed", type=int, default=42,
+                       help="Random seed for reproducibility")
     
     args = parser.parse_args()
     
     config = {
-        "datafile": args.file,
-        "k_clusters": args.clusters,
-        "max_iterations": args.max_iterations
+        "datafile": args.datafile,
+        "clusters": args.clusters,
+        "max_iterations": args.max_iterations,
+        "convergence_tolerance": args.convergence_tolerance,
+        "random_seed": args.random_seed
     }
     
     start_time = time.time()

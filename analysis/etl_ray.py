@@ -1,62 +1,79 @@
-import sys
-import os
-import time
 import argparse
+import os
+import resource
+import sys
+import time
+from collections import defaultdict
+from typing import Any, Dict, List, Tuple
+
 import numpy as np
 import pandas as pd
 import ray
-import resource
-from typing import Dict, Any, Tuple, List
-from collections import defaultdict
 
 def display_results(config: Dict[str, Any], start_time: float, end_time: float, extraction_time: float, transformation_time: float, loading_time: float, sample_results: Dict[str, Any]):
-    """Displays and saves the benchmark results."""
+    """Display and save ETL benchmark results to console and file."""
     execution_time = end_time - start_time
-    # Get peak memory usage in MB (for Linux)
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
     
-    results_text = f"""
-=== ETL RAY BENCHMARK RESULTS ===
-Dataset: {config['datafile']}
-Total execution time: {execution_time:.2f} seconds
-  - Extraction time: {extraction_time:.2f} seconds
-  - Transformation time: {transformation_time:.2f} seconds
-  - Loading time: {loading_time:.2f} seconds
-Peak memory usage (driver): {peak_memory:.2f} MB
-Chunks processed: {config.get('chunks_processed', 'N/A')}
-
-ETL Pipeline Operations Completed:
-1. Data Extraction from Local Filesystem (chunked)
-2. Data Quality Assessment
-3. Text Processing and Feature Engineering
-4. Sentiment Analysis Aggregations
-5. Time-based Aggregations
-6. Complex Joins and Window Functions
-7. Data Validation and Cleansing
-8. Results Export
-
-Sample Transformation Results:
-"""
+    # Format execution details
+    execution_details = f"""Execution Time Breakdown:
+  - Total execution time: {execution_time:.2f} seconds
+  - Data extraction time: {extraction_time:.2f} seconds
+  - Data transformation time: {transformation_time:.2f} seconds
+  - Data loading time: {loading_time:.2f} seconds"""
     
+    # Format sample results
+    sample_output = "\nSample Transformation Results:"
     for key, value in sample_results.items():
-        results_text += f"{key}:\n{value}\n\n"
+        sample_output += f"\n{key}:\n{value}\n"
+    
+    # Display formatted results
+    results_header = "ETL BENCHMARK RESULTS (RAY)"
+    results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+{execution_details}
+Peak memory usage: {peak_memory_mb:.2f} MB
+Partitions processed: {config.get('partitions', 'N/A')}
+
+ETL Pipeline Operations:
+• Data Extraction from filesystem (chunked processing)
+• Data Quality Assessment and validation
+• Text Processing and Feature Engineering
+• Sentiment Analysis with aggregations
+• Time-based data aggregations
+• Complex joins and window functions
+• Data validation and cleansing
+• Results export and persistence
+{sample_output}
+{'=' * 60}
+"""
     
     print(results_text)
     
-    # Save results to a file
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
     timestamp = int(time.time())
-    filename = f'etl_ray_results_{config["datafile"].replace(".csv", "")}_{timestamp}.txt'
-    if not os.path.exists('results'):
-        os.makedirs('results')
-    with open(f'results/{filename}', 'w') as f:
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'etl_ray_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
     
-    print(f"Results saved to results/{filename}")
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
 
 @ray.remote(scheduling_strategy="SPREAD")
 def process_etl_chunk(chunk_df, chunk_id):
-    """Process a chunk of data through the ETL pipeline."""
+    """Process a single data chunk through the complete ETL pipeline."""
     node_ip = ray._private.services.get_node_ip_address()
     print(f"(process_etl_chunk) Processing chunk {chunk_id} on node: {node_ip} ({len(chunk_df)} rows)")
     
@@ -163,7 +180,7 @@ def process_etl_chunk(chunk_df, chunk_id):
     return chunk_results
 
 def load_and_process_data(config):
-    """Load and process data in chunks using Ray with controlled memory usage."""
+    """Load CSV data in chunks and process using distributed Ray workers."""
     home_dir = os.path.expanduser("~")
     data_path = f"{home_dir}/project/data/{config['datafile']}"
     if not os.path.exists(data_path):
@@ -219,7 +236,7 @@ def load_and_process_data(config):
 
 
 def combine_chunk_results(chunk_results_list):
-    """Combine results from all chunks into final statistics."""
+    """Combine results from all processed chunks into final statistics."""
     combined = {
         'total_rows': 0,
         'null_frac_special': 0,
@@ -285,7 +302,7 @@ def combine_chunk_results(chunk_results_list):
 
 
 def format_results(combined_results):
-    """Format the combined results into readable sample results."""
+    """Format combined statistics into readable sample results for display."""
     sample_results = {}
     
     # Data Quality Stats
@@ -346,7 +363,7 @@ def format_results(combined_results):
 
 
 def etl_ray(config: Dict[str, Any]) -> Tuple[float, float, float, Dict[str, Any]]:
-    """Main ETL pipeline orchestrator for Ray."""
+    """Execute the complete ETL pipeline using Ray distributed computing."""
     print("Starting Ray ETL Pipeline...")
     
     # Extraction and Transformation (combined)
@@ -358,13 +375,90 @@ def etl_ray(config: Dict[str, Any]) -> Tuple[float, float, float, Dict[str, Any]
     extraction_time = (transform_end - extract_start) * 0.3  # Estimate 30% for extraction
     transformation_time = (transform_end - extract_start) * 0.7  # Estimate 70% for transformation
     
-    # Loading (format results)
+    # Loading (format results and save to Ray object store)
     load_start = time.time()
     sample_results = format_results(combined_results)
     
-    # Create simple output (no actual files for this chunked approach)
+    # Use Ray object store for distributed data persistence (similar to Spark's HDFS writes)
     print("=== LOADING PHASE ===")
-    print("ETL processing completed. Results formatted and ready for display.")
+    
+    # Convert defaultdicts to regular dicts for object store serialization
+    serializable_results = dict(combined_results)
+    serializable_results['sentiment_stats'] = dict(serializable_results['sentiment_stats'])
+    serializable_results['readability_stats'] = dict(serializable_results['readability_stats'])
+    
+    # 1. Store detailed statistics in Ray object store
+    print("Storing detailed statistics in Ray object store...")
+    detailed_stats_ref = ray.put(serializable_results)
+    
+    # 2. Create and store summary statistics
+    print("Creating and storing summary statistics...")
+    summary_stats = []
+    for cat, stats in serializable_results['sentiment_stats'].items():
+        if stats['count'] > 0:
+            avg_compound = stats['compound_sum'] / stats['count']
+            avg_words = stats['words_sum'] / stats['count']
+            summary_stats.append({
+                'category': cat,
+                'count': stats['count'],
+                'avg_compound': avg_compound,
+                'avg_words': avg_words
+            })
+    summary_stats_ref = ray.put(summary_stats)
+    
+    # 3. Create and store readability analysis
+    print("Creating and storing readability analysis...")
+    readability_analysis = []
+    for key, stats in sorted(serializable_results['readability_stats'].items(), 
+                            key=lambda x: x[1]['count'], reverse=True):
+        if stats['count'] > 0:
+            avg_ari = stats['ari_sum'] / stats['count']
+            avg_sentiment = stats['sentiment_sum'] / stats['count']
+            readability_analysis.append({
+                'category': key,
+                'count': stats['count'],
+                'avg_ari': avg_ari,
+                'avg_sentiment': avg_sentiment
+            })
+    readability_analysis_ref = ray.put(readability_analysis)
+    
+    # 4. Create and store final metrics
+    print("Creating and storing final metrics...")
+    fs = serializable_results['final_stats']
+    final_metrics = {
+        'final_row_count': fs['count'],
+        'avg_engagement': fs['engagement_sum'] / fs['count'] if fs['count'] > 0 else 0,
+        'avg_complexity': fs['complexity_sum'] / fs['count'] if fs['count'] > 0 else 0,
+        'avg_quality': fs['quality_sum'] / fs['count'] if fs['count'] > 0 else 0,
+        'max_engagement': fs['max_engagement'],
+        'max_complexity': fs['max_complexity'],
+        'max_quality': fs['max_quality']
+    }
+    final_metrics_ref = ray.put(final_metrics)
+    
+    # 5. Store references for later retrieval (simulating metadata storage)
+    print("Storing object references...")
+    output_refs = {
+        'detailed_stats': detailed_stats_ref,
+        'summary_stats': summary_stats_ref,
+        'readability_analysis': readability_analysis_ref,
+        'final_metrics': final_metrics_ref,
+        'dataset_name': config['datafile']
+    }
+    output_refs_ref = ray.put(output_refs)
+    
+    # 6. Verify data persistence by accessing stored objects
+    print("Verifying data persistence...")
+    stored_final_metrics = ray.get(final_metrics_ref)
+    stored_summary_count = len(ray.get(summary_stats_ref))
+    
+    print(f"Data loading completed. Objects stored in Ray cluster:")
+    print(f"  - Detailed statistics: {detailed_stats_ref}")
+    print(f"  - Summary statistics: {summary_stats_ref} ({stored_summary_count} categories)")
+    print(f"  - Readability analysis: {readability_analysis_ref}")
+    print(f"  - Final metrics: {final_metrics_ref} (verified: {stored_final_metrics['final_row_count']} rows)")
+    print(f"  - Output references: {output_refs_ref}")
+    print("ETL processing completed with distributed data persistence in Ray object store.")
     
     load_end = time.time()
     loading_time = load_end - load_start
@@ -373,14 +467,17 @@ def etl_ray(config: Dict[str, Any]) -> Tuple[float, float, float, Dict[str, Any]
 
 
 def main():
+    """Parse arguments and run ETL benchmark with Ray."""
     parser = argparse.ArgumentParser(description='ETL Benchmark using Ray')
-    parser.add_argument('-f', '--file', type=str, required=True, help='Input CSV file name in the data/ directory')
-    parser.add_argument('--partitions', type=int, default=12, help='Number of partitions (blocks)')
+    parser.add_argument('-f', '--datafile', type=str, required=True, 
+                       help='Input CSV file name in the data/ directory')
+    parser.add_argument('--partitions', type=int, default=12, 
+                       help='Number of partitions for distributed processing')
     
     args = parser.parse_args()
     
     config = {
-        'datafile': args.file,
+        'datafile': args.datafile,
         'partitions': args.partitions
     }
     
@@ -394,15 +491,11 @@ def main():
     for node in ray.nodes():
         print(f"  Node: {node['NodeID'][:8]}... alive={node['Alive']} resources={node['Resources']}")
 
-    try:
-        start_time = time.time()
-        extraction_time, transformation_time, loading_time, sample_results = etl_ray(config)
-        end_time = time.time()
-        
-        display_results(config, start_time, end_time, extraction_time, transformation_time, loading_time, sample_results)
-        
-    finally:
-        ray.shutdown()
+    start_time = time.time()
+    extraction_time, transformation_time, loading_time, sample_results = etl_ray(config)
+    end_time = time.time()
+    
+    display_results(config, start_time, end_time, extraction_time, transformation_time, loading_time, sample_results)
 
 
 if __name__ == "__main__":

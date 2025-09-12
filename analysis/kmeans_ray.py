@@ -1,46 +1,102 @@
-import os
-import time
-import ray
 import argparse
+import os
 import resource
-import numpy as np
+import time
 from collections import defaultdict
 
-np.random.seed(42)
+import numpy as np
+import ray
 
 
 def display_results(config, start_time, end_time, centroids, sample_data):
-    """Display and save K-Means results."""
+    """Display and save K-Means clustering results to console and file."""
     execution_time = end_time - start_time
-    peak_memory = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024  # MB on Linux
-
-    results_text = (
-        f"\nDataset: {config['file']}"
-        f"\nTotal execution time: {execution_time:.2f} seconds"
-        f"\nPeak memory usage: {peak_memory:.2f} MB"
-        f"\nNumber of clusters (K): {config['clusters']}"
-        f"\nMaximum iterations: {config['max_iterations']}\n\nFinal Centroids:\n"
-    )
-
+    peak_memory_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+    
+    # Format centroids output
+    centroids_output = "\nFinal Cluster Centroids:"
     for i, centroid in enumerate(centroids):
-        results_text += f"Cluster {i}: {centroid}\n"
+        centroids_output += f"\nCluster {i}: [{', '.join(f'{x:.4f}' for x in centroid)}]"
+    
+    # Format sample data output
+    sample_output = "\nSample Clustered Data:"
+    for row in sample_data[:5]:  # Limit to first 5 samples
+        features_str = '[' + ', '.join(f'{x:.4f}' for x in row.features) + ']'
+        sample_output += f"\n  Features: {features_str} -> Cluster: {row.cluster}"
+    
+    # Display formatted results
+    results_header = "K-MEANS CLUSTERING RESULTS (RAY)"
+    results_text = f"""
+{'=' * 60}
+{results_header:^60}
+{'=' * 60}
+Dataset: {config['datafile']}
+Execution time: {execution_time:.2f} seconds
+Peak memory usage: {peak_memory_mb:.2f} MB
+Number of clusters (K): {config['clusters']}
+Maximum iterations: {config['max_iterations']}
 
-    results_text += "\nSample clustered data:\n"
-    for row in sample_data:
-        results_text += f"Features: {row.features}, Cluster: {row.cluster}\n"
-
+Algorithm Configuration:
+• Clustering method: K-Means with Lloyd's algorithm
+• Convergence criterion: Centroid shift < {config.get('convergence_tolerance', 1e-4)}
+• Initialization: k-means++
+• Random seed: {config.get('random_seed', 42)}
+• Features used: 8 text analysis features
+{centroids_output}
+{sample_output}
+{'=' * 60}
+"""
+    
     print(results_text)
-
-    os.makedirs("results", exist_ok=True)
-    filename = f"results/kmeans_ray_results_{config['file'].replace('.csv', '')}_{int(time.time())}.txt"
-    with open(filename, "w") as f:
+    
+    # Create results directory if it doesn't exist
+    results_dir = 'results'
+    os.makedirs(results_dir, exist_ok=True)
+    
+    # Generate standardized filename with timestamp
+    timestamp = int(time.time())
+    dataset_name = os.path.basename(config['datafile']).replace('.csv', '')
+    filename = f'kmeans_ray_results_{dataset_name}_{timestamp}.txt'
+    filepath = os.path.join(results_dir, filename)
+    
+    # Save results to file
+    with open(filepath, 'w') as f:
         f.write(results_text)
+    
+    print(f"Results saved to {filepath}")
+    print(f"{'=' * 60}")
 
-    print(f"Results saved to {filename}")
+
+def kmeans_plus_plus_init(data_points, k, random_state=42):
+    """Initialize centroids using k-means++ algorithm for better convergence."""
+    np.random.seed(random_state)
+    
+    n_samples, n_features = data_points.shape
+    centroids = np.zeros((k, n_features))
+    
+    # Choose first centroid randomly
+    centroids[0] = data_points[np.random.randint(n_samples)]
+    
+    # Choose remaining centroids using k-means++ method
+    for i in range(1, k):
+        # Calculate distances to nearest centroid for each point
+        distances = np.array([min([np.linalg.norm(x - c)**2 for c in centroids[:i]]) for x in data_points])
+        
+        # Choose next centroid with probability proportional to squared distance
+        probabilities = distances / distances.sum()
+        cumulative_probs = probabilities.cumsum()
+        r = np.random.rand()
+        
+        for j, p in enumerate(cumulative_probs):
+            if r < p:
+                centroids[i] = data_points[j]
+                break
+    
+    return centroids
 
 
 def load_data_partition(file_path, start_row, chunk_size, features):
-    """Load a partition of data into NumPy array."""
+    """Load a specific partition of CSV data into NumPy array."""
     data_points = []
     with open(file_path, "r") as file:
         header = next(file).strip().split(",")
@@ -76,12 +132,13 @@ def load_data_partition(file_path, start_row, chunk_size, features):
 
 @ray.remote
 def load_data_partition_remote(file_path, start_row, chunk_size, features):
+    """Remote wrapper for loading data partitions in Ray workers."""
     return load_data_partition(file_path, start_row, chunk_size, features)
 
 
 @ray.remote(num_cpus=1, scheduling_strategy="SPREAD")
 def compute_partition_assignments(partition, centroids):
-    """Assign clusters and compute partial sums/counts for a partition."""
+    """Compute cluster assignments and partial statistics for a data partition."""
     distances = np.linalg.norm(partition[:, np.newaxis] - centroids, axis=2)
     cluster_assignments = np.argmin(distances, axis=1)
 
@@ -95,14 +152,18 @@ def compute_partition_assignments(partition, centroids):
 
 
 def kmeans_ray(config):
-    """Distributed K-Means with Ray."""
+    """Execute distributed K-Means clustering using Ray."""
     print("Starting distributed K-Means...")
+    
+    # Set random seed for reproducibility
+    np.random.seed(config.get('random_seed', 42))
+    
     home_dir = os.path.expanduser("~")
-    data_path = f"{home_dir}/project/data/{config['file']}"
+    data_path = f"{home_dir}/project/data/{config['datafile']}"
     if not os.path.exists(data_path):
-        data_path = f"../data/{config['file']}"
+        data_path = f"../data/{config['datafile']}"
         if not os.path.exists(data_path):
-            raise FileNotFoundError(f"Data file not found: {config['file']}")
+            raise FileNotFoundError(f"Data file not found: {config['datafile']}")
 
     features = [
         "FracSpecialChars", "NumWords", "AvgCharsPerSentence", "AvgWordsPerSentence",
@@ -129,9 +190,19 @@ def kmeans_ray(config):
     partition_refs = [ray.put(p) for p in partitions]
     print(f"Loaded {len(partition_refs)} partitions with {sum(len(p) for p in partitions)} points.")
 
-    # Initialize centroids from sample
+    # Initialize centroids using k-means++ for better convergence
     init_data = partitions[0] if len(partitions[0]) >= config["clusters"] else np.vstack(partitions[:3])
-    centroids = init_data[np.random.choice(len(init_data), config["clusters"], replace=False)]
+    centroids = kmeans_plus_plus_init(init_data, config["clusters"], config.get('random_seed', 42))
+
+    # Set convergence tolerance
+    convergence_tolerance = config.get('convergence_tolerance', 1e-4)
+    
+    print(f"K-Means configuration:")
+    print(f"  Clusters: {config['clusters']}")
+    print(f"  Max iterations: {config['max_iterations']}")
+    print(f"  Convergence tolerance: {convergence_tolerance}")
+    print(f"  Random seed: {config.get('random_seed', 42)}")
+    print(f"  Initialization: k-means++")
 
     # Run K-Means
     for iteration in range(config["max_iterations"]):
@@ -157,7 +228,7 @@ def kmeans_ray(config):
         print(f"  Centroid shift: {shift:.8f}")
         centroids = new_centroids
 
-        if shift < 1e-4:
+        if shift < convergence_tolerance:
             print(f"Converged after {iteration + 1} iterations.")
             break
 
@@ -177,11 +248,18 @@ def kmeans_ray(config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Distributed K-Means with Ray")
-    parser.add_argument("-f", "--file", required=True, help="CSV file name in data/ directory")
-    parser.add_argument("-k", "--clusters", type=int, default=3, help="Number of clusters")
-    parser.add_argument("--max-iterations", type=int, default=20, help="Maximum iterations")
-    parser.add_argument("--batch-size", type=int, default=64*1024*1024, help="Batch read size (unused)")
+    """Parse arguments and run K-Means benchmark with Ray."""
+    parser = argparse.ArgumentParser(description="Distributed K-Means clustering using Ray")
+    parser.add_argument("-f", "--datafile", type=str, required=True, 
+                       help="Input CSV file name in data/ directory")
+    parser.add_argument("-k", "--clusters", type=int, default=3, 
+                       help="Number of clusters for K-Means")
+    parser.add_argument("--max-iterations", type=int, default=20, 
+                       help="Maximum number of iterations")
+    parser.add_argument("--convergence-tolerance", type=float, default=1e-4,
+                       help="Convergence tolerance for centroid shift")
+    parser.add_argument("--random-seed", type=int, default=42,
+                       help="Random seed for reproducibility")
 
     args = parser.parse_args()
     config = vars(args)
