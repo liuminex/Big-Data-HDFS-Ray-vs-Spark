@@ -1,0 +1,29 @@
+
+============================================================
+             K-MEANS CLUSTERING RESULTS (SPARK)             
+============================================================
+Dataset: data_reddit_5G.csv
+Execution time: 314.25 seconds
+Peak memory usage: 163.69 MB
+Number of clusters (K): 3
+Maximum iterations: 20
+
+Algorithm Configuration:
+• Clustering method: K-Means with Lloyd's algorithm
+• Convergence criterion: Centroid shift < 0.0001
+• Initialization: k-means++
+• Random seed: 42
+• Features used: 8 text analysis features
+
+Final Cluster Centroids:
+Cluster 0: [0.1015, 221.8731, 172.9783, 27.7331, 23.9755, 0.0996, 0.0533, 0.3044]
+Cluster 1: [0.1013, 2088.3134, 174.4147, 27.9075, 24.0111, 0.0997, 0.0536, 0.3058]
+Cluster 2: [0.1031, 322.4095, 6540.8571, 39.0395, 30.0300, 0.0986, 0.0526, 0.3040]
+
+Sample Clustered Data:
+  Features: [0.0479, 260.0000, 178.7500, 32.5000, 20.8880, 0.0820, 0.0380, 0.9447] -> Cluster: 0
+  Features: [0.1007, 67.0000, 67.0000, 11.1667, 12.7648, 0.0640, 0.0000, 0.4515] -> Cluster: 0
+  Features: [0.1762, 352.0000, 2389.0000, 352.0000, 186.5364, 0.0310, 0.0200, 0.6049] -> Cluster: 0
+  Features: [0.0431, 335.0000, 85.0000, 15.2273, 12.9111, 0.1890, 0.1110, 0.9763] -> Cluster: 0
+  Features: [0.1636, 22.0000, 220.0000, 22.0000, 36.6700, 0.0000, 0.0000, 0.0000] -> Cluster: 0
+============================================================

@@ -1,0 +1,26 @@
+
+============================================================
+              TRIANGLE COUNTING RESULTS (RAY)               
+============================================================
+Dataset: data_reddit_5G.csv
+Execution time: 3272.73 seconds
+Peak memory usage: 159.50 MB
+Number of chunks processed: 9
+Total triangles found: 22,225,614,277
+
+Algorithm Configuration:
+• Counting method: Adjacency list intersection
+• Graph representation: Distributed adjacency lists
+• Processing strategy: Chunk-based parallel execution
+
+Triangle Counts per Chunk:
+  Chunk 1: 2,780,599,321 triangles
+  Chunk 2: 2,773,961,251 triangles
+  Chunk 3: 2,774,896,111 triangles
+  Chunk 4: 2,777,710,643 triangles
+  Chunk 5: 2,778,620,929 triangles
+  Chunk 6: 2,781,603,745 triangles
+  Chunk 7: 2,777,271,571 triangles
+  Chunk 8: 2,780,950,543 triangles
+  Chunk 9: 163 triangles
+============================================================
