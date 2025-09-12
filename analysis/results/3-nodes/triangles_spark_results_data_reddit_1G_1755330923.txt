@@ -1,5 +1,0 @@
-
-Dataset: data_reddit_1G.csv
-Total execution time: 64.71 seconds
-Peak memory usage: 456.58 MB
-Total triangles found: 1082619359

@@ -1,22 +1,25 @@
 
-=== ETL SPARK BENCHMARK RESULTS ===
+============================================================
+               ETL BENCHMARK RESULTS (SPARK)                
+============================================================
 Dataset: data_reddit_1G.csv
-Total execution time: 37.77 seconds
-  - Extraction time: 22.60 seconds
-  - Transformation time: 4.00 seconds
-  - Loading time: 11.17 seconds
-Peak memory usage: 160.33 MB
-Partitions: 12
+Execution Time Breakdown:
+  - Total execution time: 39.43 seconds
+  - Data extraction time: 23.53 seconds
+  - Data transformation time: 4.07 seconds
+  - Data loading time: 11.84 seconds
+Peak memory usage: 170.65 MB
+Partitions processed: 12
 
-ETL Pipeline Operations Completed:
-1. Data Extraction from HDFS
-2. Data Quality Assessment
-3. Text Processing and Feature Engineering
-4. Sentiment Analysis Aggregations
-5. Time-based Aggregations
-6. Complex Joins and Window Functions
-7. Data Validation and Cleansing
-8. Results Export
+ETL Pipeline Operations:
+• Data Extraction from HDFS with optimized partitioning
+• Data Quality Assessment and validation
+• Text Processing and Feature Engineering
+• Sentiment Analysis with aggregations
+• Time-based data aggregations
+• Complex joins and window functions
+• Data validation and cleansing
+• Results export and persistence
 
 Sample Transformation Results:
 Data Quality Stats:
@@ -61,3 +64,4 @@ Final Metrics:
     Max quality: 382.182
     
 
+============================================================

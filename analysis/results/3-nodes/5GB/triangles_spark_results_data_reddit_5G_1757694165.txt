@@ -1,0 +1,14 @@
+
+============================================================
+             TRIANGLE COUNTING RESULTS (SPARK)              
+============================================================
+Dataset: data_reddit_5G.csv
+Execution time: 807.74 seconds
+Peak memory usage: 1464.83 MB
+Total triangles found: 22,388,803,913
+
+Algorithm Configuration:
+• Counting method: Distributed edge-based intersection
+• Graph representation: Spark DataFrames with broadcasts
+• Processing strategy: Adjacency list broadcast + parallel computation
+============================================================

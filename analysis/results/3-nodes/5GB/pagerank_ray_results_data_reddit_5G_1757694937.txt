@@ -1,0 +1,30 @@
+
+============================================================
+              PAGERANK ALGORITHM RESULTS (RAY)              
+============================================================
+Dataset: data_reddit_5G.csv
+Execution time: 475.92 seconds
+Peak memory usage: 999.91 MB
+Convergence iterations: 2
+Maximum iterations: 20
+
+Algorithm Configuration:
+• PageRank algorithm: Power iteration method
+• Damping factor: 0.85
+• Convergence threshold: 1e-06
+• Convergence sample size: 10000
+• Graph representation: Adjacency lists (distributed)
+• Isolated node handling: Base score initialization
+
+Top 10 Nodes by PageRank Score:
+  1. askreddit: 0.000010
+  2. iama: 0.000006
+  3. videos: 0.000006
+  4. worldnews: 0.000006
+  5. funny: 0.000006
+  6. todayilearned: 0.000006
+  7. movies: 0.000005
+  8. buildapc: 0.000005
+  9. bitcoin: 0.000005
+ 10. mhol: 0.000005
+============================================================

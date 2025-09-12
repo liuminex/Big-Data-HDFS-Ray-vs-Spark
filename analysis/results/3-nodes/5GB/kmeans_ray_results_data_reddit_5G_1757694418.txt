@@ -1,0 +1,29 @@
+
+============================================================
+              K-MEANS CLUSTERING RESULTS (RAY)              
+============================================================
+Dataset: data_reddit_5G.csv
+Execution time: 196.72 seconds
+Peak memory usage: 724.59 MB
+Number of clusters (K): 3
+Maximum iterations: 20
+
+Algorithm Configuration:
+• Clustering method: K-Means with Lloyd's algorithm
+• Convergence criterion: Centroid shift < 0.0001
+• Initialization: k-means++
+• Random seed: 42
+• Features used: 8 text analysis features
+
+Final Cluster Centroids:
+Cluster 0: [0.1015, 222.1042, 172.6199, 27.7325, 23.9749, 0.0996, 0.0533, 0.3044]
+Cluster 1: [0.1030, 319.7954, 6409.3872, 38.7152, 29.9214, 0.0987, 0.0527, 0.3045]
+Cluster 2: [0.1013, 2092.5015, 174.4418, 27.9130, 24.0104, 0.0997, 0.0536, 0.3058]
+
+Sample Clustered Data:
+  Features: [0.0739, 797.0000, 82.2500, 19.0000, 24.5444, 0.0000, 0.0000, -0.2960] -> Cluster: 0
+  Features: [0.0617, 172.0000, 67.5714, 12.2857, 11.3298, 0.1440, 0.0790, 0.8299] -> Cluster: 0
+  Features: [0.1116, 391.0000, 178.0714, 27.9286, 22.8542, 0.1050, 0.0190, 0.9804] -> Cluster: 0
+  Features: [0.0758, 164.0000, 42.7895, 17.3500, 14.6971, 0.1090, 0.1070, -0.8267] -> Cluster: 0
+  Features: [0.0776, 56.0000, 68.6667, 18.6667, 30.7453, 0.1110, 0.0000, -0.9390] -> Cluster: 0
+============================================================

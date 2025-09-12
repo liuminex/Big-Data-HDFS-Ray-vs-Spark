@@ -1,22 +1,25 @@
 
-=== ETL RAY BENCHMARK RESULTS ===
+============================================================
+                ETL BENCHMARK RESULTS (RAY)                 
+============================================================
 Dataset: data_reddit_1G.csv
-Total execution time: 50.20 seconds
-  - Extraction time: 15.06 seconds
-  - Transformation time: 35.14 seconds
-  - Loading time: 0.00 seconds
-Peak memory usage (driver): 230.49 MB
-Chunks processed: 266
+Execution Time Breakdown:
+  - Total execution time: 50.16 seconds
+  - Data extraction time: 15.05 seconds
+  - Data transformation time: 35.11 seconds
+  - Data loading time: 0.00 seconds
+Peak memory usage: 228.00 MB
+Partitions processed: 12
 
-ETL Pipeline Operations Completed:
-1. Data Extraction from Local Filesystem (chunked)
-2. Data Quality Assessment
-3. Text Processing and Feature Engineering
-4. Sentiment Analysis Aggregations
-5. Time-based Aggregations
-6. Complex Joins and Window Functions
-7. Data Validation and Cleansing
-8. Results Export
+ETL Pipeline Operations:
+• Data Extraction from filesystem (chunked processing)
+• Data Quality Assessment and validation
+• Text Processing and Feature Engineering
+• Sentiment Analysis with aggregations
+• Time-based data aggregations
+• Complex joins and window functions
+• Data validation and cleansing
+• Results export and persistence
 
 Sample Transformation Results:
 Data Quality Stats:
@@ -58,3 +61,4 @@ Final Metrics:
     Max quality: 202.336
     
 
+============================================================

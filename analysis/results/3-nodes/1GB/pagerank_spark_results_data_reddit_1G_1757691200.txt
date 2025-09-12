@@ -1,0 +1,30 @@
+
+============================================================
+             PAGERANK ALGORITHM RESULTS (SPARK)             
+============================================================
+Dataset: data_reddit_1G.csv
+Execution time: 68.89 seconds
+Peak memory usage: 157.75 MB
+Convergence iterations: 3
+Maximum iterations: 20
+
+Algorithm Configuration:
+• PageRank algorithm: Power iteration method
+• Damping factor: 0.85
+• Convergence threshold: 1e-06
+• Convergence sample size: 10000
+• Graph representation: Spark DataFrames with joins
+• Isolated node handling: Left join with null handling
+
+Top 10 Nodes by PageRank Score:
+  1. askreddit: 0.003954
+  2. iama: 0.002762
+  3. pics: 0.002338
+  4. writingprompts: 0.002169
+  5. todayilearned: 0.002090
+  6. videos: 0.002073
+  7. worldnews: 0.002013
+  8. leagueoflegends: 0.001995
+  9. funny: 0.001981
+ 10. news: 0.001706
+============================================================
