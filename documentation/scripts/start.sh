@@ -16,15 +16,15 @@ if [ "$HOST" == "o-master" ]; then
     start-yarn.sh
 
     # Start Spark History Server
-    "$SPARK_HOME"/sbin/start-history-server.sh
+    start-history-server.sh
 
     # Start Ray Master
     ~/project/documentation/scripts/8-start-ray.sh master
 
     echo "✅ Master services started."
 
-elif [ "$HOST" == "o-worker" ]; then
-    echo "Starting services on WORKER node..."
+elif [ "$HOST" == "o-worker" ] || [ "$HOST" == "o-worker2" ]; then
+    echo "Starting services on WORKER node ($HOST)..."
 
     # Start Ray Worker
     ~/project/documentation/scripts/8-start-ray.sh worker
@@ -33,6 +33,6 @@ elif [ "$HOST" == "o-worker" ]; then
 
 else
     echo "❌ Unknown hostname: $HOST"
-    echo "This script expects 'o-master' or 'o-worker'."
+    echo "This script expects 'o-master', 'o-worker', or 'o-worker2'."
     exit 1
 fi

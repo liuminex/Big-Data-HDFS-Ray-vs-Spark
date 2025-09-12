@@ -6,7 +6,11 @@ source ./config.sh || { eko RED "config.sh not found."; }
 
 # Add hostnames to /etc/hosts
 eko CYAN "Adding hostnames to /etc/hosts"
-echo -e "127.0.0.1      localhost\n$MASTER_IP   o-master\n$WORKER_IP    o-worker\n" | sudo tee /etc/hosts > /dev/null
+if [ "$NUM_NODES" == "3" ]; then
+    echo -e "127.0.0.1      localhost\n$MASTER_IP   o-master\n$WORKER_IP    o-worker\n$WORKER2_IP    o-worker2\n" | sudo tee /etc/hosts > /dev/null
+else
+    echo -e "127.0.0.1      localhost\n$MASTER_IP   o-master\n$WORKER_IP    o-worker\n" | sudo tee /etc/hosts > /dev/null
+fi
 
 eko CYAN "adding ssh keys"
 eko YELLOW "For simplicity, we use the same pre generated keys for ssh between all nodes"

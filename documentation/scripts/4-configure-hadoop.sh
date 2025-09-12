@@ -51,4 +51,8 @@ EOL
 
 ## hadoop/workers
 eko CYAN "Adding to hadoop/workers"
-echo -e "o-master\no-worker\n" > $HADOOP_HOME/etc/hadoop/workers # overwrite file
+if [ "$NUM_NODES" == "3" ]; then
+    echo -e "o-master\no-worker\no-worker2\n" > $HADOOP_HOME/etc/hadoop/workers # overwrite file
+else
+    echo -e "o-master\no-worker\n" > $HADOOP_HOME/etc/hadoop/workers # overwrite file
+fi
