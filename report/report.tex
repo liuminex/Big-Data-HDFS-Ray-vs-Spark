@@ -294,9 +294,9 @@ usage across different dataset sizes and number of workers.
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
  & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 111.02 & 64.71 & 1 & 159.66 & 456.58 \\
-3 & 5 & 2796.29 & 761.85 & 5 & 158.25 & 1509.84 \\
-2 & 5 & 2960.04 & 823.36 & 5 & 158.62 & 1463.75 \\
+3 & 1 & 109.65 & 70.21 & 1 & 160.11 & 457.04 \\
+3 & 5 & 2707.37 & 807.74 & 5 & 159.14 & 1464.83 \\
+2 & 5 & 3272.73 & 817.38 & 5 & 159.5 & 1465.18 \\
 
 \bottomrule\end{tabular}}
 \end{figure}
@@ -324,12 +324,14 @@ Ray, on the other hand, favors streaming and chunked data processing without ext
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{3}
-\captionof{figure}{Spark and Ray exhibit similar speedup for triangle counting when increasing worker count.}
+\captionof{figure}{
+Ray shows significantly more speedup than Spark when scaling from 2 to 3 workers for triangle counting. Spark showed almost no speed up, while Ray imporved by 17\%.}
 \end{figure}
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{4}
-\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray or Spark for triangle counting.}
+\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray or Spark for triangle counting,
+as both had less than 1\% change when scaling from 2 to 3 workers.}
 \end{figure}
 
 
@@ -350,9 +352,9 @@ Ray, on the other hand, favors streaming and chunked data processing without ext
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
  & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 93.65 & 69.32 & 1 & 345.43 & 183.16 \\
-3 & 5 & 467.54 & 144.78 & 5 & 996.92 & 182.16 \\
-2 & 5 & 506.98 & 178.43 & 5 & 995.28 & 182.48 \\
+3 & 1 & 86.23 & 68.89 & 1 & 349.71 & 157.75 \\
+3 & 5 & 475.92 & 184.18 & 5 & 999.91 & 174.69 \\
+2 & 5 & 470.3 & 186.12 & 5 & 1000.09 & 165.84 \\
 \bottomrule
 \end{tabular}%
 }
@@ -371,12 +373,14 @@ Spark's memory usage remains stable, while Ray's memory increases with dataset s
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{7}
-\captionof{figure}{For PageRank, Spark is faster at scaling, showing significant speedup with more workers.}
+\captionof{figure}{Scaling didn't significantly impact execution time for Ray or Spark for PageRank,
+as both had less than 2\% change when scaling from 2 to 3 workers.}
 \end{figure}
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{8}
-\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray or Spark for PageRank.}
+\captionof{figure}{Scaling didn't significantly impact peak memory used by Ray, but increased
+Spark's memory usage by 5\% when scaling from 2 to 3 workers.}
 \end{figure}
 
 
@@ -397,9 +401,9 @@ Spark's memory usage remains stable, while Ray's memory increases with dataset s
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
  & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 50.20 & 37.77 & 1 & 230.49 & 160.33 \\
-3 & 5 & 261.73 & 176.43 & 5 & 228.31 & 162.47 \\
-2 & 5 & 263.91 & 201.82 & 5 & 232.18 & 160.16 \\
+3 & 1 & 50.16 & 39.43 & 1 & 228 & 170.65 \\
+3 & 5 & 261.5 & 204.95 & 5 & 229.18 & 166.87 \\
+2 & 5 & 266.95 & 195.72 & 5 & 230.43 & 161.62 \\
 \bottomrule
 \end{tabular}%
 }
@@ -417,7 +421,8 @@ Spark's memory usage remains stable, while Ray's memory increases with dataset s
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{11}
-\captionof{figure}{ETL: Spark is faster at scaling, showing significant speedup with more workers. Ray's speedup is less pronounced.}
+\captionof{figure}{ETL: Scaling didn't significantly impact execution time for Ray or Spark,
+as both had less than 5\% change when scaling from 2 to 3 workers.}
 \end{figure}
 
 \begin{figure}[H]\centering
@@ -436,9 +441,9 @@ Spark's memory usage remains stable, while Ray's memory increases with dataset s
 \toprule
 Workers & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 15.06 & 22.60 \\
-3 & 5 & 78.52 & 99.34 \\
-2 & 5 & 79.17 & 127.62 \\
+3 & 1 & 15.05 & 23.53 \\
+3 & 5 & 78.45 & 129.81 \\
+2 & 5 & 80.08 & 124.1 \\
 \bottomrule
 \end{tabular}%
 }
@@ -451,7 +456,7 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{14}
-\captionof{figure}{ETL Extract phase: Spark is better at utilizing more workers.}
+\captionof{figure}{ETL Extract phase: Scaling didn't significantly impact execution time for Ray or Spark.}
 \end{figure}
 
 % ETL Transform phase
@@ -463,9 +468,9 @@ Workers & Dataset (GB) & Ray & Spark \\
 \toprule
 Workers & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 35.14 & 4.00 \\
-3 & 5 & 183.21 & 21.00 \\
-2 & 5 & 184.74 & 19.06 \\
+3 & 1 & 35.11 & 4.07 \\
+3 & 5 & 183.05 & 19.15 \\
+2 & 5 & 186.86 & 18.21 \\
 \bottomrule
 \end{tabular}%
 }
@@ -479,7 +484,8 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.8\columnwidth]{16}
-\captionof{figure}{ETL Transform: Spark increased memory usage when scaling.}
+\captionof{figure}{ETL Transform: Scaling didn't significantly impact peak memory used by Ray or Spark,
+as both had less than 5.2\% change when scaling from 2 to 3 workers.}
 \end{figure}
 
 
@@ -492,9 +498,9 @@ Workers & Dataset (GB) & Ray & Spark \\
 \toprule
 Workers & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 0.00 & 11.17 \\
-3 & 5 & 0.00 & 56.09 \\
-2 & 5 & 0.00 & 55.14 \\
+3 & 1 & 0 & 11.84 \\
+3 & 5 & 0 & 56 \\
+2 & 5 & 0 & 53.41 \\
 \bottomrule
 \end{tabular}%
 }
@@ -527,9 +533,9 @@ Workers & Dataset (GB) & Ray & Spark \\
 \cmidrule(lr){2-4} \cmidrule(lr){5-7}
  & Dataset (GB) & Ray & Spark & Dataset (GB) & Ray & Spark \\ 
 \midrule
-3 & 1 & 14.52 & 106.48 & 1 & 367.60 & 168.13 \\
-3 & 5 & 194.62 & 247.24 & 5 & 705.59 & 160.21 \\
-2 & 5 & 244.45 & 313.99 & 5 & 708.64 & 169.49 \\
+3 & 1 & 16.8 & 86.56 & 1 & 392.38 & 161.01 \\
+3 & 5 & 196.72 & 285.34 & 5 & 724.59 & 161.56 \\
+2 & 5 & 254.77 & 314.25 & 5 & 723.15 & 163.69 \\
 \bottomrule
 \end{tabular}%
 }
@@ -549,13 +555,14 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{21}
-\captionof{figure}{k-means: Both showed significant improvement in execution time when scaling.}
+\captionof{figure}{k-means: Both showed significant improvement in execution time when scaling,
+but Ray improved by 23\% while Spark improved by 9\%.}
 \end{figure}
 
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{22}
-\captionof{figure}{k-means: Spark used 5\% less memory when scaling. Ray didn't show improvement.}
+\captionof{figure}{k-means: Scaling didn't significantly impact peak memory used by Ray or Spark.}
 \end{figure}
 
 
@@ -592,24 +599,22 @@ This represents a narrow scaling window and, while useful for illustrating relat
 it does not permit strong generalization about multi-node scalability at larger scales (e.g., tens to hundreds of nodes). 
 All observations below should therefore be interpreted as indicative within this limited regime rather than definitive statements about asymptotic scaling.
 
-Both Ray and Spark exhibit improvements in execution time
-when scaling graph operations and k-means clustering workloads
-within this 2 to 3 worker range, demonstrating their ability to leverage
-additional computational resources. Among these tasks, Spark maintains a
-performance advantage for PageRank computations, likely due to
-its optimized graph processing libraries and in-memory caching
-mechanisms. In ETL workloads, the behavior of the frameworks
-diverges. Ray shows relatively consistent performance across
-extraction, transformation, and loading phases, with limited
-improvement when scaling resources. Spark, in contrast, delivers
-mixed results: it achieves noticeable acceleration during the
-extraction phase but exhibits slower performance during
-transformation and loading, suggesting that efficiency gains
-from additional parallelism can be bounded by I/O and memory bottlenecks
-in these phases. Regarding memory usage, both frameworks demonstrate
-similar patterns as the worker count increases in this narrow window, indicating
-that the observed scaling primarily improves runtime without
-substantially affecting peak memory consumption.
+
+Ray scaled better in execution time for triangle counting and k-means clustering
+because these workloads are highly parallelizable with minimal inter-worker communication,
+allowing Ray’s fine-grained task scheduling to efficiently distribute work, but it showed
+minimal change for PageRank, which involves iterative computations where each node depends
+on its neighbors, so adding workers increases communication and synchronization overhead,
+limiting scaling. Spark exhibited limited scaling benefits in execution time across all graph
+workloads because its coarse-grained task scheduling and shuffle-heavy operations make graph
+computations expensive, with only slight improvements for k-means, which can be more easily
+parallelized. Both frameworks showed minimal improvement in ETL execution time when scaling
+from 2 to 3 workers because these tasks are often I/O-bound, so adding workers does not reduce
+the bottleneck. Overall, Ray performs better for CPU-bound, easily parallelizable tasks, while
+communication-heavy or I/O-bound workloads see limited gains from additional workers in both
+frameworks.
+
+Neither Ray nor Spark reduced memory usage when scaling; peak memory stayed roughly the same, driven mainly by dataset size and computation rather than worker count.
 
 A more comprehensive scalability characterization 
 (e.g., strong and weak scaling across larger clusters, profiling shuffle and scheduling overheads, and exploring heterogeneous resources such as GPUs) 
