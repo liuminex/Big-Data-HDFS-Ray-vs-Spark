@@ -7,7 +7,7 @@ After successful installation and configuration, after reboot you can start them
 ./project/documentation/scripts/start.sh
 ```
 
-or manually:
+**or** manually:
 
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
 ```bash
