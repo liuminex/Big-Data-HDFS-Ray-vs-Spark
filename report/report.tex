@@ -44,12 +44,12 @@ Scalable Big Data Analytics and Machine Learning in Python}
 \begin{abstract}
 As data-intensive applications become more prevalent, the need for
 efficient and scalable big data processing frameworks has never been greater.
-This work presents a comparative analysis of two prominent distributed systems - Apache Spark and
-Ray - focusing on their performance in executing Extract, Transform, Load (ETL) processes and
+This work presents a comparative analysis of two prominent distributed systems, Apache Spark and
+Ray, focusing on their performance in executing Extract, Transform, Load (ETL) processes and
 handling a range of machine learning workloads, from basic algorithms to more sophisticated
-AI models. To conduct our evaluation, we leverage datasets of varying sizes, sourced and
-synthetically generated, which are stored in a Hadoop Distributed File System (HDFS) deployed
-across a two-node cluster. We assess both frameworks based on critical criteria such as
+AI models. To conduct our evaluation, we leverage datasets of varying sizes, combining publicly available 
+and synthetically generated datasets, which are stored in a Hadoop Distributed File System (HDFS) deployed
+across a three-node cluster. We assess both frameworks based on critical criteria such as
 execution efficiency, scalability under load, and resilience to varying resource constraints.
 The results reveal distinct advantages for each platform: Apache Spark demonstrates strong
 proficiency in large-scale ETL operations, while Ray stands out in distributed machine
@@ -75,14 +75,14 @@ architecture tailored toward distributed machine learning (ML) and reinforcement
 learning workloads.
 
 \subsection{HDFS and Hadoop}
-Hadoop is an open-source framework designed to store and process large-scale data sets across
+Hadoop is an open-source framework designed to store and process large-scale datasets across
 distributed computing environments. At the core of Hadoop is the Hadoop Distributed File
 System (HDFS), which is a scalable, fault-tolerant file system that runs on commodity hardware and
 manages the storage of massive amounts of data. HDFS enables a single Hadoop cluster to scale
 from a handful of nodes to thousands, making it ideal for handling big data applications.
 The system is designed to provide high throughput access to data by distributing files into large
 blocks and replicating them across multiple nodes to ensure fault tolerance and data reliability.
-HDFS follows a master-slave architecture, where the NameNode manages the file system namespace
+HDFS follows a master-worker architecture, where the NameNode manages the file system namespace
 and metadata, while multiple DataNodes handle the storage and retrieval of data blocks.
 This design supports parallel data processing by locating computation tasks close to where data
 resides, reducing network congestion and improving performance. Hadoop and HDFS together
@@ -90,7 +90,7 @@ facilitate efficient batch processing, complex data analytics, and support a var
 applications, from data lakes to AI and machine learning workflows. Their portability across
 hardware platforms and compatibility with multiple programming languages make Hadoop and
 HDFS widely adopted solutions for organizations managing vast,
-diverse data sets \cite{hdfs}.
+diverse datasets \cite{hdfs}.
 
 \subsection{Ray}
 Ray is an open-source unified framework designed to scale AI and Python applications,
@@ -102,8 +102,8 @@ smoothly with popular cloud platforms and cluster managers like Kubernetes, AWS,
 Azure. Its architecture includes Ray Core for general-purpose distributed computing, Ray AI
 Libraries tailored for specific ML tasks, and Ray Clusters that can autoscale based on
 workload demands. Ray enables data scientists and ML engineers to seamlessly scale workloads
-from a laptop to large clusters using the same Python code, reducing the gap between development
-and production. Additionally, it handles essential distributed system tasks like orchestration,
+from a laptop to large clusters using the same Python code, narrowing the development–production gap. 
+Additionally, it handles essential distributed system tasks like orchestration,
 scheduling, fault tolerance, and auto-scaling automatically, making it a powerful tool for
 building and deploying scalable machine learning applications \cite{ray}.
 
@@ -114,7 +114,7 @@ Supporting APIs in Java, Scala, Python, and R, Spark facilitates multiple worklo
 batch processing, interactive queries, real-time analytics, machine learning, and graph
 processing. Originally developed in 2009 at UC Berkeley’s AMPLab, Spark aimed to overcome
 limitations of Hadoop MapReduce by reducing job steps and reusing data in-memory, making it
-significantly faster, especially for iterative tasks like machine learning. Unlike Hadoop,
+substantially faster, especially for iterative tasks like machine learning. Unlike Hadoop,
 Spark does not have its own storage but works with systems like HDFS, Amazon S3, and others,
 often running on Hadoop clusters using YARN for resource management. Spark’s ecosystem
 includes core components like Spark SQL for fast queries, Spark Streaming for real-time
@@ -127,8 +127,28 @@ big data analytics \cite{spark}.
 
 \subsection{Hardware and OS}
 For the experiments, we used a distributed cluster of local virtual machines.
-The cluster consisted of three VMs, each with Ubuntu Server 22.04 LTS, 4 CPUs,
-4 GB of RAM, and 50 GB of disk space.
+The cluster consisted of three virtual machines, each with 4 CPU cores,
+4 GB of RAM, and 50 GB of disk space. We used Oracle VirtualBox to create and manage these.
+
+\subsection{Software Stack}
+Table~\ref{tab:software_versions} summarizes the software components and versions used in all experiments. Ray version corresponds to the latest stable release at the time of experimentation referenced in the documentation citation.
+\begin{table}[H]
+  \centering
+  \caption{Software Versions Used in Experiments}
+  \label{tab:software_versions}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Component} & \textbf{Version} \\
+    \midrule
+    Hadoop (HDFS/YARN) & 3.3.6 \\
+    Apache Spark & 3.5.6 \\
+    Ray & 2.47.1 \\
+    Java (OpenJDK) & 11 \\
+    Python & 3.12 \\
+    Ubuntu Linux & 24.04 LTS \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Hadoop}
 The Hadoop configuration focused on key parameters to optimize cluster operation.
@@ -154,7 +174,7 @@ cluster as the resource manager. Spark event logging was enabled, with
 logs stored in HDFS under the directory /spark.eventLog on the master node to
 support job history and monitoring. The Spark master was configured to
 run in YARN client mode, allowing dynamic resource allocation and management
-through YARN. Memory allocations were set to 1 GB each for the Spark
+through YARN. Memory allocations were set to 1GB each for the Spark
 driver and executors, with a single CPU core allocated per executor,
 balancing resource usage across the cluster. The Spark History Server was
 started to provide a web interface for monitoring completed Spark applications.
@@ -178,7 +198,9 @@ A Python-based data generation script was developed to expand the dataset to a
 specified target size (e.g., in megabytes or gigabytes). The script samples
 from existing data attributes and ensures uniqueness in critical fields such
 as post identifiers, thereby creating enlarged datasets that preserve the
-statistical properties of the original data.
+statistical properties of the original data. The final datasets used in the
+experiments had sizes of 1GB and 5GB, providing a robust basis for evaluating
+the performance of the distributed computing frameworks under study.
 
 \section{Evaluation Tasks}
 
@@ -248,7 +270,8 @@ memory-intensive, as it requires repeated passes over the dataset
 and communication of updated centroids across nodes. Evaluating
 k-means allows us to assess how well each framework supports
 iterative, data-parallel machine learning workloads, which are
-central to modern analytics pipelines.  
+central to modern analytics pipelines. For our experiments, we
+used the 3 clusters, 20 iterations and k-means++ initialization method \cite{kmeans++}.
 
 \section{Benchmarks and Results}
 
@@ -280,7 +303,7 @@ usage across different dataset sizes and number of workers.
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{1}
-\captionof{figure}{Spark is significantly faster than Ray for triangle
+\captionof{figure}{Spark is substantially faster than Ray for triangle
 counting. As we can see in the graph, not only Ray is slower, but it
 also has a greater slope which means their difference in execution time increases
 with larger datasets.}
@@ -301,8 +324,7 @@ Ray, on the other hand, favors streaming and chunked data processing without ext
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{3}
-\captionof{figure}{Spark and Ray are equally good at scaling triangle counting
-with more workers.}
+\captionof{figure}{Spark and Ray exhibit similar speedup for triangle counting when increasing worker count.}
 \end{figure}
 
 \begin{figure}[H]\centering
@@ -451,7 +473,7 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{15}
-\captionof{figure}{ETL Transform phase: Spark is significantly faster than Ray for Transform operations.}
+\captionof{figure}{ETL Transform phase: Spark is substantially faster than Ray for Transform operations.}
 \end{figure}
 
 
@@ -480,7 +502,7 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{17}
-\captionof{figure}{ETL Load phase: Ray achieves near-zero load time due to in-memory optimizations, whereas Spark's load time increases with dataset size.}
+\captionof{figure}{ETL Load phase: Ray reports negligible load time, likely attributable to in-memory operations, whereas Spark's load time increases with dataset size.}
 \end{figure}
 
 \begin{figure}[H]\centering
@@ -495,7 +517,7 @@ Workers & Dataset (GB) & Ray & Spark \\
 %================ Machine Learning =================
 \begin{figure}[H]
 \centering
-\captionof{table}{KMeans Benchmark Results}
+\captionof{table}{k-means Benchmark Results}
 \resizebox{0.9\columnwidth}{!}{%
 \begin{tabular}{c c c c c c c}
 \toprule
@@ -515,25 +537,25 @@ Workers & Dataset (GB) & Ray & Spark \\
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{19}
-\captionof{figure}{KMeans: Ray is significantly faster for small datasets and remains faster than Sparks for larger datasets too.}
+\captionof{figure}{k-means: Ray is substantially faster for small datasets and remains faster than Spark for larger datasets too.}
 \end{figure}
 
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{20}
-\captionof{figure}{KMeans: Spark used less memory than Ray.}
+\captionof{figure}{k-means: Spark used less memory than Ray.}
 \end{figure}
 
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{21}
-\captionof{figure}{KMeans: Both showed significant improvement in execution time when scaling.}
+\captionof{figure}{k-means: Both showed significant improvement in execution time when scaling.}
 \end{figure}
 
 
 \begin{figure}[H]\centering
 \includegraphics[width=0.9\columnwidth]{22}
-\captionof{figure}{KMeans: Spark used 5\% less memory when scaling. Ray didn't show improvement.}
+\captionof{figure}{k-means: Spark used 5\% less memory when scaling. Ray didn't show improvement.}
 \end{figure}
 
 
@@ -549,7 +571,7 @@ algorithm: Ray requires less memory for triangle counting, while
 Spark is more memory-efficient for PageRank computations due to its
 caching and shuffle strategies. In ETL workloads, each framework
 demonstrates strengths in different phases. Spark achieves
-significantly faster performance during the transformation phase,
+substantially faster performance during the transformation phase,
 leveraging in-memory operations and optimized data shuffles, but it
 is relatively slower in data extraction and loading. In contrast,
 Ray provides faster execution for machine learning tasks, though this
@@ -564,28 +586,34 @@ performance.
 
 \subsection{Scalability}
 
-Both Ray and Spark exhibit notable improvements in execution time
-when scaling graph operations and K-Means clustering workloads,
-demonstrating their ability to efficiently leverage additional
-computational resources. Among these tasks, Spark maintains a
+The scaling experiments in this study were intentionally constrained to a small cluster expansion: 
+increasing the number of worker nodes from 2 to 3. 
+This represents a narrow scaling window and, while useful for illustrating relative framework behavior under modest additional parallelism, 
+it does not permit strong generalization about multi-node scalability at larger scales (e.g., tens to hundreds of nodes). 
+All observations below should therefore be interpreted as indicative within this limited regime rather than definitive statements about asymptotic scaling.
+
+Both Ray and Spark exhibit improvements in execution time
+when scaling graph operations and k-means clustering workloads
+within this 2 to 3 worker range, demonstrating their ability to leverage
+additional computational resources. Among these tasks, Spark maintains a
 performance advantage for PageRank computations, likely due to
 its optimized graph processing libraries and in-memory caching
 mechanisms. In ETL workloads, the behavior of the frameworks
 diverges. Ray shows relatively consistent performance across
-extraction, transformation, and loading phases, with minimal
+extraction, transformation, and loading phases, with limited
 improvement when scaling resources. Spark, in contrast, delivers
-mixed results: it achieves significant acceleration during the
+mixed results: it achieves noticeable acceleration during the
 extraction phase but exhibits slower performance during
-transformation and loading, suggesting that the efficiency gains
-from parallelization can be limited by I/O and memory bottlenecks
+transformation and loading, suggesting that efficiency gains
+from additional parallelism can be bounded by I/O and memory bottlenecks
 in these phases. Regarding memory usage, both frameworks demonstrate
-comparable patterns when the number of workers increases, indicating
-that scaling primarily improves runtime performance without
-substantially affecting peak memory consumption. These observations
-highlight the importance of selecting the appropriate framework
-based on the specific workload characteristics and performance
-priorities.
+similar patterns as the worker count increases in this narrow window, indicating
+that the observed scaling primarily improves runtime without
+substantially affecting peak memory consumption.
 
+A more comprehensive scalability characterization 
+(e.g., strong and weak scaling across larger clusters, profiling shuffle and scheduling overheads, and exploring heterogeneous resources such as GPUs) 
+is left to future work. Such experiments would help determine whether the relative advantages observed here persist, diminish, or invert under higher degrees of parallelism.
 
 \subsection{Ease of Use}
 Both Ray and Spark provide high-level
@@ -613,7 +641,7 @@ All experiments were performed on publicly available datasets and using
 open-source versions of Ray and Spark. Scripts, configuration files, and
 instructions for reproducing the experiments are provided in the supplementary
 materials and a public repository (link omitted here). The experiments use
-standardized benchmarks for PageRank, ETL, triangle counting, and KMeans,
+standardized benchmarks for PageRank, ETL, triangle counting, and k-means,
 ensuring that the results can be independently verified and extended by other
 researchers. Containerization and virtual environment specifications further
 improve reproducibility.
@@ -636,7 +664,11 @@ frameworks that prioritize execution speed often incur higher
 memory consumption, while memory-efficient frameworks may experience
 slower runtimes. Both frameworks scale effectively with additional
 computational resources, although Spark’s specialized optimizations
-allow it to maintain a performance edge in certain workloads.
+allow it to maintain a performance edge in certain workloads. 
+
+Future work could extend this comparison to streaming workloads, 
+larger clusters, and GPU-accelerated training to assess 
+how architectural differences evolve under increased scale and heterogeneity.
 
 
 
@@ -657,6 +689,8 @@ allow it to maintain a performance edge in certain workloads.
 \bibitem{pagerank} E. Roberts and K. Schroeder, ``The Google PageRank Algorithm,'' Stanford University CS54N. Available: \url{https://web.stanford.edu/class/cs54n/handouts/24-GooglePageRankAlgorithm.pdf}.
 
 \bibitem{kmeans} C. Piech, ``K-Means,'' Stanford University CS221. Available: \url{https://stanford.edu/~cpiech/cs221/handouts/kmeans.html}.
+
+\bibitem{kmeans++} D. Arthur and S. Vassilvitskii, ``k-means++: The Advantages of Careful Seeding,'' in \textit{Proc. of the 18th Annual ACM-SIAM Symposium on Discrete Algorithms (SODA)}, pp. 1027--1035, 2007. Available: \url{http://theory.stanford.edu/~sergei/papers/kMeansPP-soda.pdf}. 
 
 \bibitem{zaharia2018spark} M. Zaharia, R. Xin, P. Wendell, T. Das, M. Armbrust, A. Dave, X. Meng, J. Rosen, S. Venkataraman, M. J. Franklin, A. Ghodsi, J. Gonzalez, S. Shenker, and I. Stoica, ``Apache Spark: A Unified Engine for Big Data Processing,'' \textit{arXiv:1804.10563}, 2018. Available: \url{https://arxiv.org/abs/1804.10563}.
 
