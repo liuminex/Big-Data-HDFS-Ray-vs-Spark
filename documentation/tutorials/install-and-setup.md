@@ -2,13 +2,24 @@
 
 ### Create the machines
 
-If you choose to run the project in Okeanos, check out [how to create the VMs in Okeanos](https://github.com/liuminex/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/tutorials/create-okeanos.md).
-If you choose to run the project in local VMs, check out [how to create the VMs in your local machine](https://github.com/liuminex/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/tutorials/create-local.md).
+To run the project in a local virtual machine cluster, check out [how to create the VMs in your local machine](https://github.com/liuminex/Big-Data-HDFS-Ray-vs-Spark/blob/main/documentation/tutorials/create-vms.md).
 
+### Configuration
+Clone the repository in your host machine:
+```bash
+git clone https://github.com/liuminex/Big-Data-HDFS-Ray-vs-Spark
+cd Big-Data-HDFS-Ray-vs-Spark
+```
+
+Edit the `config.sh` file in `documentation/scripts/` and set the variables according to your setup (IP addresses, memory, number of nodes).
+
+You can transfer the files to the VMs using `scp` or any other method you prefer. You can use the script provided in `documentation/scripts/transfer-files-to-vms.sh` to help you with that.
+We will assume you have placed the files in `~/project` in all VMs.
 
 ### Access the machines
 
 #### Enable SSH
+
 
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) Check if enabled: `sudo systemctl status ssh`, if not, enable it:
 ```bash
@@ -20,7 +31,7 @@ sudo systemctl enable ssh
 
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) Find the dynamic IPs of the VMs:
 ```bash
-ip a | grep 192. # find ip (in VM)
+ip a 
 ```
 
 **First update variables in `config.sh`!**
@@ -39,31 +50,15 @@ After they finish rebooting:
 
 #### Connect to the VMs
 
-##### okeanos
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5)
-```bash
-ssh debian@snf-*****.ok-kno.grnetcloud.net -p 4622
-```
-
-##### local
-
 ![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5) Connect to the VM:
 ```bash
-ssh username-in-vm@the-static-ip-you-defined-in-config
+ssh [VM Username]@[Static IP we set before]
 
 # examples:
 
 ssh t@192.168.2.121
 
 ssh debian@192.168.56.104
-```
-
-### Get/update the files
-
-![Host OS Badge](https://img.shields.io/badge/Host%20OS-4284f5)
-```bash
-sudo apt-get install sshpass
-./transfer-files-to-vms.sh
 ```
 
 ### Install and configure
@@ -95,13 +90,10 @@ hdfs namenode -format && start-dfs.sh
 - `NameNode`
 - `DataNode`
 
-and this in worker VM:
+and this in the workers VM:
 - `DataNode`
 
-Or go to [http://o-master (public IP):9870](http://o-master:9870).
-Use public IP for okeanos or private IP for local VMs. Example:
-[http://192.168.2.121:9870](http://192.168.2.121:9870).
-Check if there are two live nodes.
+Or go to [http://[MASTER IP]:9870](http://o-master:9870) and check if all the expected nodes are live.
 
 If you don't see the nodes, check the logs:
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) `cat /opt/hadoop/logs/hadoop-*.log`
@@ -120,7 +112,7 @@ start-yarn.sh
 
 #### Confirm yarn
 
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) `yarn node -list`. You should see two nodes (wait a bit first!)
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) `yarn node -list`. You should see two (or three depending on the setup) nodes (wait a bit first!)
 
 Or 
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733) run command `jps`. In addition to the previous outputs of jps, you should also see these in the master:
@@ -132,14 +124,11 @@ Or
 and this in the worker:
 - `NodeManager`
 
-Or go to [http://o-master (public IP):8088/cluster/nodes](http://o-master:8088/cluster/nodes).
-Use public IP for okeanos or private IP for local VMs. Example:
-[http://192.168.2.121:8088/cluster/nodes](http://192.168.2.121:8088/cluster/nodes).
-Check if there are two nodes.
+Or go to [http://[MASTER IP]:8088/cluster/nodes](http://o-master:8088/cluster/nodes) and check if all the expected nodes are live.
 
 #### Continue setup
 
-![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) (η πρωτη εντολη (echo) ιιιιισως να χρειαζεται και στο worker - μαλλον οχι)
+![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
 ```bash
 ./6-spark.sh
 source ~/.bashrc
@@ -149,9 +138,8 @@ source ~/.bashrc
 
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542) `jps`. Find `HistoryServer`.
 
-Or go to [http://o-master (public IP):18080](http://o-master:18080).
-Use public IP for okeanos or private IP for local VMs. Example:
-[http://192.168.2.121:18080](http://192.168.2.121:18080).
+Or go to [http://[MASTER IP]:18080](http://o-master:18080).
+
 
 #### Confirm spark
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
@@ -169,8 +157,8 @@ spark-submit \
   /opt/spark/examples/jars/spark-examples_2.12-3.5.6.jar 100  
 ```
 You must be able to monitor the progress at:
-- [YARN web application (http://o-master (public IP):8088)](http://192.168.2.121:8088)
-- [history server (http://o-master (public IP):18080)](http://192.168.2.121:18080) after completion.
+- YARN web application [http://[MASTER IP]:8088](http://o-master:8088)
+- History Server [http://[MASTER IP]:18080](http://o-master:18080) after the job finishes
 
 #### Continue setup
 ![All VMs Badge](https://img.shields.io/badge/VM-All-ff5733)
@@ -193,4 +181,4 @@ source ~/.bashrc
 ```bash
 python3 ./test-ray.py
 ```
-Ray dashboard should be available at [http://o-master (public IP):8265](http://o-master:8265) (example: [http://192.168.2.121:8265](http://192.168.2.121:8265))
+Ray dashboard should be available at [http://[MASTER IP]:8265](http://o-master:8265).

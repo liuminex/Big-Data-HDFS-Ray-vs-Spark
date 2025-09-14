@@ -7,19 +7,13 @@ After successful installation and configuration, after reboot you can start them
 ./project/documentation/scripts/start.sh
 ```
 
-
-
-
-
-
-<hr>
 or manually:
 
 ![Master VM Badge](https://img.shields.io/badge/VM-Master-f59542)
 ```bash
 start-dfs.sh
 start-yarn.sh
-$SPARK_HOME/sbin/start-history-server.sh
+start-history-server.sh
 ./project/documentation/scripts/8-start-ray.sh master
 ```
 
